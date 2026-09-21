@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --theme-primary: #fbbf24;
+    --theme-primary-container: #fbbf24;
+    --theme-on-primary-container: #261a00;
+    --theme-secondary: #d0bcff;
+    --theme-secondary-container: #571bc1;
+    --theme-on-secondary-container: #c4abff;
+    --theme-accent: #38bdf8;
+    --theme-surface-low: #1c1a24;
+    --theme-surface: #211e28;
+    --theme-surface-high: #2b2932;
+    --theme-glow: rgba(87, 27, 193, 0.4);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #14121b;
+    color: #e6e0ee;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+/* Arcane aesthetics & sockets */
+.font-runic {
+  font-family: 'Cinzel', 'EB Garamond', serif;
+}
+
+.font-garamond {
+  font-family: 'EB Garamond', Georgia, serif;
+}
+
+.arcane-vignette {
+  background: radial-gradient(circle at 50% 0%, var(--theme-glow, rgba(87, 27, 193, 0.18)) 0%, transparent 70%);
+}
+
+.jewel-socket {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 1px var(--theme-primary, rgba(251, 191, 36, 0.18));
+}
+
+.rune-socket {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85), 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.gem-pulse {
+  animation: pulse-glow 2.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 6px var(--theme-secondary, rgba(208, 188, 255, 0.4)), inset 0 0 2px rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 16px var(--theme-secondary, rgba(208, 188, 255, 0.8)), inset 0 0 5px rgba(255, 255, 255, 1);
+  }
+}
+
+.card-arcane-glow {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-arcane-glow:hover {
+  box-shadow: 0 10px 30px -4px var(--theme-glow, rgba(87, 27, 193, 0.4)), 0 0 12px var(--theme-primary, rgba(251, 191, 36, 0.2));
+}
+
+.runic-divider {
+  background: linear-gradient(90deg, transparent 0%, var(--theme-primary, #fbbf24) 50%, transparent 100%);
+  height: 1px;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #14121b;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b2932;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #474352;
+}
