@@ -1,6 +1,76 @@
 import { ClassKey, ClassTheme, ElementAffinity } from './types';
 
 export const CLASS_THEMES: Record<ClassKey, ClassTheme> = {
+  barbaro: {
+    id: 'barbaro',
+    name: 'Bárbaro',
+    subtitle: 'Piedra, Cuero y Sangre',
+    description: 'Piedra, cuero y pieles con tonos rojo sangre.',
+    icon: 'axe',
+    colors: {
+      primary: '#b91c1c',          // Rojo sangre
+      primaryContainer: '#7f1d1d',
+      onPrimaryContainer: '#fef2f2',
+      secondary: '#78350f',        // Cuero oscuro
+      secondaryContainer: '#451a03',
+      onSecondaryContainer: '#f5ebe0',
+      accent: '#d97706',           // Ámbar cálido
+      surfaceContainerLow: '#2e2e2e',
+      surfaceContainer: '#3f3f3f',
+      surfaceContainerHigh: '#525252',
+      borderGlow: 'rgba(185, 28, 28, 0.45)',
+      vignetteGlow: 'rgba(120, 53, 15, 0.25)',
+      badgeBg: 'rgba(120, 53, 15, 0.4)',
+      badgeText: '#fca5a5'
+    }
+  },
+  clerigo: {
+    id: 'clerigo',
+    name: 'Clérigo',
+    subtitle: 'Blanco y Dorado Divino',
+    description: 'Blanco puro, dorado celestial y colores del dominio.',
+    icon: 'cross',
+    colors: {
+      primary: '#fef3c7',          // Dorado suave
+      primaryContainer: '#facc15',
+      onPrimaryContainer: '#78350f',
+      secondary: '#e5e7eb',        // Blanco puro
+      secondaryContainer: '#d1d5db',
+      onSecondaryContainer: '#1f2937',
+      accent: '#a3e635',           // Verde esperanza
+      surfaceContainerLow: '#f9fafb',
+      surfaceContainer: '#f3f4f6',
+      surfaceContainerHigh: '#e5e7eb',
+      borderGlow: 'rgba(250, 204, 21, 0.45)',
+      vignetteGlow: 'rgba(245, 158, 11, 0.25)',
+      badgeBg: 'rgba(250, 204, 21, 0.4)',
+      badgeText: '#78350f'
+    }
+  },
+  monje: {
+    id: 'monje',
+    name: 'Monje',
+    subtitle: 'Tinta y Papel de Arroz',
+    description: 'Tinta negra, papel de arroz y rojo sello.',
+    icon: 'yin_yang',
+    colors: {
+      primary: '#1c1917',          // Tinta negra
+      primaryContainer: '#292524',
+      onPrimaryContainer: '#f5f5f4',
+      secondary: '#f87171',        // Rojo sello
+      secondaryContainer: '#7f1d1d',
+      onSecondaryContainer: '#fef2f2',
+      accent: '#a8a29e',           // Gris neutro
+      surfaceContainerLow: '#fafaf9',
+      surfaceContainer: '#f5f5f4',
+      surfaceContainerHigh: '#e7e5e4',
+      borderGlow: 'rgba(248, 113, 113, 0.45)',
+      vignetteGlow: 'rgba(127, 29, 29, 0.25)',
+      badgeBg: 'rgba(127, 29, 29, 0.4)',
+      badgeText: '#fef2f2'
+    }
+  },
+  // Add other classes here following the same structure
   mago: {
     id: 'mago',
     name: 'Mago',
