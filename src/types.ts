@@ -15,6 +15,32 @@ export type ClassKey =
   | 'homebrew';
 
 export type AbilityCode = 'FUE' | 'DES' | 'CON' | 'INT' | 'SAB' | 'CAR';
+export type Ability = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+export type RollMode = 'normal' | 'advantage' | 'disadvantage';
+export type RollKind = 'attack' | 'check' | 'save';
+export type ProficiencyLevel = 'none' | 'half' | 'proficient' | 'expertise';
+export type TrackedAction = 'action' | 'bonusAction' | 'reaction';
+export type ConditionId =
+  | 'blinded' | 'charmed' | 'deafened' | 'frightened' | 'grappled'
+  | 'incapacitated' | 'invisible' | 'paralyzed' | 'petrified'
+  | 'poisoned' | 'prone' | 'restrained' | 'stunned' | 'unconscious';
+
+export interface ConditionEffect {
+  attackDisadvantage?: boolean;
+  attackAdvantage?: boolean;
+  abilityCheckDisadvantage?: boolean;
+  savingThrowDisadvantage?: boolean;
+  savingThrowDisadvantageAbilities?: Ability[];
+  speedZero?: boolean;
+  autoFailSaves?: Ability[];
+  incapacitated?: boolean;
+}
+
+export interface DamageModifiers {
+  resistances: string[];
+  vulnerabilities: string[];
+  immunities: string[];
+}
 
 export type ElementAffinity = 'neutral' | 'agua' | 'tierra' | 'fuego';
 
@@ -56,7 +82,8 @@ export interface Skill {
   name: string;
   attr: 'FUE' | 'DES' | 'CON' | 'INT' | 'SAB' | 'CAR';
   modifier: number;
-  isProficient: boolean;
+  proficiencyLevel: ProficiencyLevel;
+  isProficient?: boolean;
   isExpert?: boolean;
   isHomebrew?: boolean;
 }
@@ -107,7 +134,8 @@ export interface SpellDefinition {
   range: string;
   components: string; // "V, S, M"
   duration: string;
-  concentration: boolean;
+  concentration?: boolean;
+  upcast?: { dicePerLevel: string };
   attackOrDc: string;
   damageOrHeal: string;
   description: string;
@@ -118,11 +146,38 @@ export interface InventoryItem {
   id: string;
   name: string;
   quantity: number;
-  itemType: 'Consumible' | 'Poción' | 'Pergamino' | 'Herramienta' | 'Equipo' | 'Homebrew';
-  description: string;
+  itemType?: 'Consumible' | 'Poción' | 'Pergamino' | 'Herramienta' | 'Equipo' | 'Homebrew';
+  description?: string;
   usesRemaining?: number;
   usesMax?: number;
   isHomebrew?: boolean;
+  weight?: number;
+  equipped?: boolean;
+  attuned?: boolean;
+  kind?: 'weapon' | 'armor' | 'shield' | 'gear' | 'consumable' | 'magic';
+  armor?: {
+    base: number;
+    dexCap: number | null;
+    category: 'light' | 'medium' | 'heavy';
+  };
+  shieldBonus?: number;
+}
+
+export interface Currency {
+  cp: number;
+  sp: number;
+  ep: number;
+  gp: number;
+  pp: number;
+}
+
+export interface ClassResource {
+  id: string;
+  name: string;
+  usesMax: number;
+  usesRemaining: number;
+  recharge: 'Descanso Corto' | 'Descanso Largo' | 'Ninguna';
+  description: string;
 }
 
 export interface ClassFeature {
@@ -135,6 +190,12 @@ export interface ClassFeature {
   recharge?: 'Descanso Corto' | 'Descanso Largo' | 'Ninguna' | string;
   description: string;
   isHomebrew?: boolean;
+}
+
+export interface HitDicePool {
+  dieSize: 6 | 8 | 10 | 12;
+  total: number;
+  remaining: number;
 }
 
 export interface CharacterSheet {
@@ -154,6 +215,7 @@ export interface CharacterSheet {
   
   // Tactical Stats
   armorClass: number;
+  manualArmorClass?: boolean;
   acType: string;
   initiative: number;
   speedFeet: number;
@@ -167,6 +229,9 @@ export interface CharacterSheet {
   maxHp: number;
   tempHp: number;
   hitDice: string;
+  hitDicePool?: HitDicePool;
+  exhaustionLevel?: number;
+  damageModifiers?: DamageModifiers;
   deathSaves: {
     successes: number; // 0..3
     failures: number;  // 0..3
@@ -186,7 +251,9 @@ export interface CharacterSheet {
   feats?: FeatDefinition[];
   spells?: SpellDefinition[];
   inventory?: InventoryItem[];
+  currency?: Currency;
   classFeatures?: ClassFeature[];
+  classResources?: ClassResource[];
 
   traits: {
     title: string;
@@ -221,6 +288,7 @@ export interface TacticalCard {
   resourceDesc?: string;
   resourceMax?: number;
   resourceUsed?: number;
+  consumesResource?: boolean;
   recharge?: 'Descanso Corto' | 'Descanso Largo' | 'Ninguna' | string;
   scaling?: string;
   durationAndConcentration?: string;
@@ -232,6 +300,9 @@ export interface TacticalCard {
   isHomebrew?: boolean;
   isExpended?: boolean;
   rollFormula?: string;
+  damageFormula?: string;
+  rollAbility?: AbilityCode;
+  rollProficient?: boolean;
 }
 
 export interface CombatRoundState {
@@ -239,6 +310,10 @@ export interface CombatRoundState {
   initiativeScore: number;
   isStanding: boolean;
   concentrationSpell: string | null;
+  concentration?: ConcentrationState | null;
+  conditions?: ConditionId[];
+  activeEffects?: ActiveEffect[];
+  encounter?: Encounter;
   hasInspiration: boolean;
   maxMovement: number;
   remainingMovement: number;
@@ -248,10 +323,50 @@ export interface CombatRoundState {
   reactionUsed: boolean;
 }
 
+export interface AppSettings {
+  autoTrackActions: boolean;
+}
+
+export interface Combatant {
+  id: string;
+  name: string;
+  side: 'player' | 'ally' | 'enemy';
+  initiative: number;
+  initiativeBonus?: number;
+  hp?: number;
+  maxHp?: number;
+  ac?: number;
+  conditions: ConditionId[];
+  isCurrentCharacter?: boolean;
+  notes?: string;
+}
+
+export interface Encounter {
+  combatants: Combatant[];
+  turnIndex: number;
+  round: number;
+}
+
+export interface ActiveEffect {
+  id: string;
+  name: string;
+  source?: string;
+  roundsRemaining: number | null;
+  requiresConcentration?: boolean;
+  note?: string;
+}
+
+export interface ConcentrationState {
+  spellName: string;
+  spellLevel: number;
+  startedRound: number;
+}
+
 export interface DiceRollResult {
   id: string;
   title: string;
   d20: number;
+  natural?: number;
   modifier: number;
   total: number;
   isNat20: boolean;
@@ -261,4 +376,13 @@ export interface DiceRollResult {
   diceSides?: number;
   diceCount?: number;
   advantageMode?: 'normal' | 'advantage' | 'disadvantage';
+  diceFormula?: string;
+  isCriticalDamage?: boolean;
+  autoFailed?: boolean;
+}
+
+export interface DiceRollOutcome {
+  natural: number;
+  total: number;
+  autoFailed?: boolean;
 }
