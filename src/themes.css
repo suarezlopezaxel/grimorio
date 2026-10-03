@@ -1,0 +1,72 @@
+/* ===== Base compartida ===== */
+.themed-root{min-height:100vh;position:relative;color:var(--c-text);background:var(--bg-image,none),var(--c-bg)}
+.themed-root canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.themed-content{position:relative;z-index:1}
+.themed-title{font-family:var(--font-title),serif;color:var(--c-accent);letter-spacing:.03em}
+.themed-panel{position:relative;background:var(--c-surface);border:2px var(--bstyle,solid) var(--c-border);border-radius:var(--radius,12px);box-shadow:0 0 18px -8px var(--c-accent);transition:border-color .25s,box-shadow .25s}
+.themed-panel:hover{border-color:var(--c-accent);box-shadow:0 0 22px -6px var(--c-accent)}
+.themed-panel::before,.themed-panel::after{content:var(--corner);position:absolute;font-size:15px;line-height:1;color:var(--c-accent);opacity:.75;pointer-events:none}
+.themed-panel::before{top:4px;left:8px}
+.themed-panel::after{bottom:4px;right:8px;transform:rotate(180deg)}
+.themed-divider{height:var(--div-h,3px);background:var(--div-bg);margin:14px 0;opacity:.85;filter:drop-shadow(0 0 4px var(--c-accent))}
+.pip{display:inline-block;font-size:20px;line-height:1;cursor:pointer;color:var(--c-accent);text-shadow:0 0 8px var(--c-accent);transform:var(--pip-on,none);transition:all .35s}
+.pip[data-used="true"]{opacity:.3;text-shadow:none;transform:var(--pip-used,scale(.8))}
+
+/* ===== Bardo: dorado, burdeos, crema ===== */
+[data-class="bardo"]{--c-bg:#1a0d12;--c-surface:#2a1219;--c-accent:#e0b04a;--c-accent2:#f3e6c4;--c-text:#f3e6c4;--c-border:#7a2a3a;--font-title:'Almendra';--corner:'𝄞';--bstyle:double;
+--bg-image:repeating-linear-gradient(to bottom,transparent 0 56px,rgba(224,176,74,.08) 56px 57px);
+--div-bg:repeating-linear-gradient(to bottom,var(--c-accent) 0 1px,transparent 1px 4px);--div-h:17px;--pip-used:translateY(6px) scale(.8)}
+/* ===== Druida: musgo, corteza, ámbar ===== */
+[data-class="druida"]{--c-bg:#0e1a0f;--c-surface:#1a2a16;--c-accent:#d9a441;--c-accent2:#7fb069;--c-text:#e8ead0;--c-border:#5a3d22;--font-title:'IM Fell English';--corner:'❦';--bstyle:ridge;--radius:16px;
+--bg-image:radial-gradient(ellipse at top,rgba(127,176,105,.2),transparent 60%),repeating-linear-gradient(90deg,rgba(90,61,34,.14) 0 2px,transparent 2px 14px);
+--div-bg:linear-gradient(90deg,transparent,#5a3d22 15%,#7fb069 50%,#5a3d22 85%,transparent);--div-h:4px;--pip-used:rotate(35deg) scale(.75) translateY(3px)}
+[data-class="druida"] .pip[data-used="true"]{color:#8a6a3a}
+/* ===== Bárbaro: piedra, cuero, rojo sangre ===== */
+[data-class="barbaro"]{--c-bg:#17110e;--c-surface:#261b16;--c-accent:#c0392b;--c-accent2:#d9c7a3;--c-text:#eadfcf;--c-border:#5a4636;--font-title:'Uncial Antiqua';--corner:'☠';--bstyle:groove;--radius:4px;
+--bg-image:repeating-linear-gradient(45deg,rgba(255,255,255,.02) 0 3px,transparent 3px 9px),radial-gradient(ellipse at bottom,rgba(192,57,43,.2),transparent 60%);
+--div-bg:repeating-linear-gradient(45deg,#5a4636 0 4px,#8a6a4a 4px 8px);--div-h:6px;--pip-on:skewX(-20deg) scale(1.2,1.5);--pip-used:skewX(-20deg) scale(1,1.1)}
+/* ===== Clérigo: blanco, dorado, rayos de luz ===== */
+[data-class="clerigo"]{--c-bg:#181a24;--c-surface:#232634;--c-accent:#f2d27a;--c-accent2:#ffffff;--c-text:#f6f3e8;--c-border:#c9a94f;--font-title:'Cinzel';--corner:'✠';--bstyle:double;--radius:22px 22px 8px 8px;
+--bg-image:linear-gradient(180deg,rgba(255,240,180,.14),transparent 45%),repeating-linear-gradient(100deg,rgba(255,240,180,.045) 0 40px,transparent 40px 90px);
+--div-bg:linear-gradient(90deg,transparent,#f2d27a,transparent);--div-h:2px}
+/* ===== Guerrero: acero, bronce, heráldica ===== */
+[data-class="guerrero"]{--c-bg:#12151a;--c-surface:#1e242d;--c-accent:#cd7f32;--c-accent2:#b8c2cc;--c-text:#e6eaee;--c-border:#6b7785;--font-title:'Marcellus SC';--corner:'⚔';--bstyle:outset;--radius:6px;
+--bg-image:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);
+--div-bg:linear-gradient(90deg,#6b7785,#cd7f32,#6b7785)}
+/* ===== Monje: tinta, papel de arroz, rojo sello ===== */
+[data-class="monje"]{--c-bg:#0d0d0f;--c-surface:#1a1a1e;--c-accent:#c8372d;--c-accent2:#efe8d8;--c-text:#efe8d8;--c-border:#3a3a40;--font-title:'Noto Serif JP';--corner:'☯';--radius:2px;
+--bg-image:radial-gradient(circle at 20% 10%,rgba(239,232,216,.08),transparent 40%),radial-gradient(circle at 85% 80%,rgba(200,55,45,.08),transparent 35%);
+--div-bg:linear-gradient(90deg,transparent,#efe8d8 20%,#c8372d 50%,#efe8d8 80%,transparent)}
+/* ===== Paladín: plata, azul real, dorado ===== */
+[data-class="paladin"]{--c-bg:#0c1430;--c-surface:#16224d;--c-accent:#e8c766;--c-accent2:#cfd8e8;--c-text:#eef2fa;--c-border:#6f86bf;--font-title:'Cinzel';--corner:'✠';--bstyle:double;--radius:10px 10px 28px 28px;
+--bg-image:radial-gradient(ellipse at 50% -10%,rgba(232,199,102,.24),transparent 55%);
+--div-bg:linear-gradient(90deg,transparent,#cfd8e8,#e8c766,#cfd8e8,transparent)}
+/* ===== Pícaro: negro, púrpura, latón ===== */
+[data-class="picaro"]{--c-bg:#0a0810;--c-surface:#16121f;--c-accent:#b08d57;--c-accent2:#7a4bbf;--c-text:#ddd6e6;--c-border:#3a2e4d;--font-title:'Pirata One';--corner:'♠';--bstyle:dashed;--radius:8px;
+--bg-image:radial-gradient(circle at 50% 120%,rgba(122,75,191,.22),transparent 60%);
+--div-bg:repeating-linear-gradient(90deg,var(--c-accent) 0 8px,transparent 8px 14px);--div-h:2px}
+/* ===== Explorador: oliva, mapa, cuero ===== */
+[data-class="explorador"]{--c-bg:#141a10;--c-surface:#232b1a;--c-accent:#c8a96a;--c-accent2:#8a9a5b;--c-text:#ece4cf;--c-border:#6b5a3a;--font-title:'Almendra';--corner:'⌖';--bstyle:solid;--radius:6px;
+--bg-image:repeating-linear-gradient(0deg,rgba(200,169,106,.05) 0 1px,transparent 1px 28px),repeating-linear-gradient(90deg,rgba(200,169,106,.05) 0 1px,transparent 1px 28px);
+--div-bg:repeating-linear-gradient(90deg,var(--c-accent) 0 3px,transparent 3px 9px);--div-h:2px}
+/* ===== Hechicero: color según linaje ===== */
+[data-class="hechicero"]{--c-bg:#12081a;--c-surface:#221030;--c-accent:#ff4d6d;--c-accent2:#ffb703;--c-text:#f6e9f5;--c-border:#8a2a5b;--font-title:'Cinzel';--corner:'✹';--radius:14px;
+--bg-image:radial-gradient(circle at 50% 50%,rgba(255,77,109,.1),transparent 60%);
+--div-bg:linear-gradient(90deg,transparent,var(--c-accent),var(--c-accent2),var(--c-accent),transparent)}
+[data-class="hechicero"][data-sub="tormenta"]{--c-accent:#4cc9f0;--c-accent2:#b8e8ff;--c-border:#2a6a9b}
+[data-class="hechicero"][data-sub="salvaje"]{--c-accent:#c77dff;--c-accent2:#ff9e00;--c-border:#6a2a9b}
+/* ===== Brujo: violeta, verde tóxico, según patrón ===== */
+[data-class="brujo"]{--c-bg:#0d0614;--c-surface:#1a0f26;--c-accent:#8a5cf6;--c-accent2:#8cff3f;--c-text:#e7dff2;--c-border:#4a2a78;--font-title:'Uncial Antiqua';--corner:'◉';--radius:10px;
+--bg-image:radial-gradient(ellipse at 50% 100%,rgba(138,92,246,.22),transparent 60%);
+--div-bg:linear-gradient(90deg,transparent,var(--c-accent),#8cff3f,var(--c-accent),transparent)}
+[data-class="brujo"][data-sub="infernal"]{--c-accent:#ff5a1f;--c-border:#7a2a10}
+[data-class="brujo"][data-sub="primigenio"]{--c-accent:#6fa8ff;--c-border:#2a3f7a}
+[data-class="brujo"][data-sub="feerico"]{--c-accent:#ff8fd1;--c-border:#7a2a5b}
+/* ===== Mago: azul noche, maná, runas ===== */
+[data-class="mago"]{--c-bg:#070b24;--c-surface:#101744;--c-accent:#8f7bff;--c-accent2:#4fd1ff;--c-text:#e6e9ff;--c-border:#3b4a9e;--font-title:'Cinzel';--corner:'✦';--bstyle:double;--radius:12px;
+--bg-image:radial-gradient(circle at 50% 0%,rgba(79,209,255,.16),transparent 55%),radial-gradient(circle at 80% 90%,rgba(143,123,255,.2),transparent 50%);
+--div-bg:linear-gradient(90deg,transparent,var(--c-accent2),var(--c-accent),var(--c-accent2),transparent);--div-h:2px}
+/* ===== Artífice: cobre, planos, engranajes ===== */
+[data-class="artifice"]{--c-bg:#17120d;--c-surface:#2a2117;--c-accent:#d1803f;--c-accent2:#9ad1c9;--c-text:#efe3d2;--c-border:#7a5231;--font-title:'Special Elite';--corner:'⚙';--bstyle:dotted;--radius:4px;
+--bg-image:repeating-linear-gradient(0deg,rgba(154,209,201,.05) 0 1px,transparent 1px 24px),repeating-linear-gradient(90deg,rgba(154,209,201,.05) 0 1px,transparent 1px 24px);
+--div-bg:repeating-linear-gradient(90deg,var(--c-accent) 0 4px,transparent 4px 8px);--div-h:2px}

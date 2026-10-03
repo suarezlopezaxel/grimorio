@@ -92,110 +92,19 @@
   opacity: 0.9;
 }
 
-/* Bardo: pentagramas + esquinas con clave/cuerno */
-.character-sheet--bardo::before {
-  background:
-    /* textura partitura */
-    linear-gradient(180deg, rgba(251, 191, 36, 0.06), transparent 55%),
-    repeating-linear-gradient(
-      180deg,
-      rgba(251, 191, 36, 0.0) 0px,
-      rgba(251, 191, 36, 0.0) 2px,
-      rgba(251, 191, 36, 0.55) 3px,
-      rgba(251, 191, 36, 0.0) 4px,
-      rgba(251, 191, 36, 0.0) 15px
-    );
-
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  box-shadow:
-    0 0 10px rgba(251, 191, 36, 0.12),
-    0 0 40px rgba(236, 72, 153, 0.10);
-}
-
-.character-sheet--bardo::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  pointer-events: none;
-  opacity: 0.85;
-  background:
-    /* “esquinas” con clave/cuerno simuladas con sombras */
-    radial-gradient(circle at 6% 12%, rgba(251, 191, 36, 0.22), transparent 35%),
-    radial-gradient(circle at 94% 12%, rgba(251, 191, 36, 0.16), transparent 35%),
-    radial-gradient(circle at 6% 88%, rgba(251, 191, 36, 0.12), transparent 40%),
-    radial-gradient(circle at 94% 88%, rgba(236, 72, 153, 0.12), transparent 40%);
-}
-
-
-/* Druida: ramas/raíces (imitación con gradientes) */
-.character-sheet--druida::before {
-  background:
-    radial-gradient(circle at 8% 12%, rgba(202, 138, 4, 0.35) 0%, transparent 35%),
-    radial-gradient(circle at 92% 8%, rgba(163, 230, 53, 0.35) 0%, transparent 35%),
-    radial-gradient(circle at 12% 92%, rgba(167, 243, 208, 0.22) 0%, transparent 35%),
-    radial-gradient(circle at 88% 92%, rgba(202, 138, 4, 0.24) 0%, transparent 35%),
-    repeating-linear-gradient(90deg, rgba(6, 95, 70, 0.12) 0px, rgba(6, 95, 70, 0.12) 2px, transparent 2px, transparent 12px);
-  border: 1px solid rgba(110, 231, 183, 0.22);
-  box-shadow: 0 0 50px rgba(16, 185, 129, 0.12);
-}
-
-/* Bárbaro: piedras + runas sutiles */
-.character-sheet--barbaro::before {
-  background:
-    radial-gradient(circle at 10% 20%, rgba(185, 28, 28, 0.25) 0%, transparent 40%),
-    radial-gradient(circle at 85% 18%, rgba(217, 119, 6, 0.18) 0%, transparent 35%),
-    repeating-linear-gradient(135deg, rgba(127, 29, 29, 0.18) 0px, rgba(127, 29, 29, 0.18) 1px, transparent 1px, transparent 9px);
-  border: 1px solid rgba(252, 165, 165, 0.22);
-}
-
-/* Animaciones: notas/hojas/energía (activación por hover o por clase add .fx-on) */
-@media (prefers-reduced-motion: reduce) {
-  .fx-notes, .fx-leaves, .fx-pulse {
-    animation: none !important;
+@keyframes note-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
   }
-}
-
-/* Bardo: notas (para Inspiración o hover) */
-.fx-bardo-notes {
-  position: absolute;
-  left: 50%;
-  top: -6px;
-  width: 160px;
-  height: 120px;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 5;
-}
-
-.fx-bardo-notes::before {
-  content: '♪';
-  position: absolute;
-  left: 55px;
-  top: 40px;
-  font-size: 20px;
-  color: rgba(251, 191, 36, 0.95);
-  text-shadow: 0 0 16px rgba(251, 191, 36, 0.35);
-  opacity: 0;
-}
-
-.fx-bardo-notes::after {
-  content: '♫';
-  position: absolute;
-  left: 15px;
-  top: 20px;
-  font-size: 14px;
-  color: rgba(208, 188, 255, 0.95);
-  text-shadow: 0 0 16px rgba(208, 188, 255, 0.35);
-  opacity: 0;
-}
-
-.character-sheet--bardo.fx-on .fx-bardo-notes::before {
-  animation: note-fade 1.2s ease-out forwards;
-}
-
-.character-sheet--bardo.fx-on .fx-bardo-notes::after {
-  animation: note-fade 1.2s ease-out 0.12s forwards;
+  20% {
+    opacity: 1;
+    transform: translateY(-12px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-35px) scale(1.3);
+  }
 }
 
 .character-sheet--bardo.fx-on .fx-bardo-notes {

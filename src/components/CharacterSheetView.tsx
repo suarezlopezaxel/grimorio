@@ -12,6 +12,7 @@ import { attunedItemCount, computeAC, currencyInGold, EMPTY_CURRENCY, inventoryW
 import { abilityScoreImprovementsBetween, applyWizardLevelUp, spellSlotsForClassLevel } from '../lib/classProgression';
 import { LevelUpDialog } from './LevelUpDialog';
 import { isValidUpcastDice } from '../lib/upcasting';
+import { Pip, Divider } from './ThemedParts';
 
 const ABILITY_BY_CODE: Record<AbilityCode, Ability> = {
   FUE: 'str',
@@ -32,7 +33,6 @@ const PROFICIENCY_PRESENTATION = {
 interface CharacterSheetViewProps {
   character: CharacterSheet;
   theme?: ClassTheme;
-  theme?: import('../types').ClassTheme;
   activeConditions: ConditionId[];
   concentration: ConcentrationState | null;
   onConcentrationChange: (concentration: ConcentrationState | null) => void;
@@ -53,6 +53,7 @@ interface CharacterSheetViewProps {
   onLongRest: () => void;
   onBeforeUndoableAction: () => void;
   onNotify: (message: string) => void;
+  onTriggerBurst?: () => void;
 }
 
 export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
@@ -67,11 +68,11 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   onLongRest,
   onBeforeUndoableAction,
   onNotify,
+  onTriggerBurst,
 }) => {
   const classKey = character.classKey ?? 'mago';
 
   // Theme is optional; prefer class-based styling.
-  const themeResolved: ClassTheme | undefined = theme;
   // Modal / Quick addition states for Homebrew
   const [showAddWeapon, setShowAddWeapon] = useState(false);
   const [concentrationCheck, setConcentrationCheck] = useState<{
@@ -127,7 +128,6 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   });
   const [editingInventoryId, setEditingInventoryId] = useState<string | null>(null);
   const [showInventoryForm, setShowInventoryForm] = useState(false);
-  const [fxOn, setFxOn] = useState(false);
   const [levelUpTarget, setLevelUpTarget] = useState<number | null>(null);
 
   const [showAddSkill, setShowAddSkill] = useState(false);
@@ -489,7 +489,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
   return (
     <div
-      className={`character-sheet character-sheet--${classKey} flex flex-col w-full pb-16 fx-root ${fxOn ? 'fx-on' : ''}`}
+      className={`character-sheet flex flex-col w-full pb-16`}
       onMouseEnter={() => setFxOn(true)}
       onMouseLeave={() => setFxOn(false)}
       style={
@@ -538,7 +538,6 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   </span>
                 </div>
                 {character.hasInspiration && (
-                  <div className="fx-bardo-notes" aria-hidden />
                 )}
               </button>
               <button
@@ -1764,7 +1763,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         {/* Columna Derecha: Ranuras de Conjuro y Ataques de Armas */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           {/* Ranuras de Conjuro Interactivas */}
-          <div className="bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
+          <div className="themed-panel bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[var(--theme-secondary,#d0bcff)] text-xl">
@@ -1778,8 +1777,8 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 {character.preparedSpellsCount} Preparados
               </span>
             </div>
-
-            <div className="flex flex-col gap-3">
+            <Divider />
+            <div className="flex flex-col gap-3 mt-3">
               {character.spellSlots.map((tier, tierIdx) => (
                 <div
                   key={`tier-${tier.tier}`}
@@ -1798,20 +1797,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     {Array.from({ length: tier.max }).map((_, slotIdx) => {
                       const isAvailable = slotIdx < tier.current;
                       return (
-                        <button
+                        <Pip
                           key={`tier-${tier.tier}-slot-${slotIdx}`}
-                          onClick={() => handleToggleSpellSlot(tierIdx, slotIdx)}
-                          className="w-6 h-6 rounded-full bg-[#2b2932] border border-white/10 flex items-center justify-center transition-all hover:scale-110"
-                          title={isAvailable ? 'Espacio disponible (clic para gastar)' : 'Espacio gastado (clic para recuperar)'}
-                        >
-                          <span
-                            className={`w-3 h-3 rounded-full bg-[var(--theme-secondary,#d0bcff)] transition-opacity ${
-                              isAvailable
-                                ? 'opacity-100 shadow-[0_0_8px_rgba(208,188,255,0.8)]'
-                                : 'opacity-10'
-                            }`}
-                          />
-                        </button>
+                          used={!isAvailable}
+                          onClick={() => {
+                            if (isAvailable && onTriggerBurst) onTriggerBurst();
+                            handleToggleSpellSlot(tierIdx, slotIdx);
+                          }}
+                        />
                       );
                     })}
                   </div>
@@ -1821,9 +1814,10 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           </div>
 
           {(character.classResources ?? []).length > 0 && (
-            <section className="rounded-xl border border-[var(--theme-primary,#fbbf24)]/20 bg-[#1c1a24] p-4" aria-label="Recursos de clase">
+            <section className="themed-panel rounded-xl border border-[var(--theme-primary,#fbbf24)]/20 bg-[#1c1a24] p-4" aria-label="Recursos de clase">
               <h3 className="mb-3 font-garamond text-lg font-bold text-white">Recursos de Clase</h3>
-              <div className="space-y-2">
+              <Divider />
+              <div className="space-y-2 mt-3">
                 {character.classResources?.map((resource) => (
                   <div key={resource.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#211e28] px-3 py-2">
                     <div>
@@ -1831,40 +1825,25 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                       <p className="text-[10px] text-gray-500">{resource.description} · Recarga: {resource.recharge.toLowerCase()}</p>
                     </div>
                     <div className="flex items-center gap-1.5" aria-label={`${resource.usesRemaining} de ${resource.usesMax} usos`}>
-                      <button
-                        type="button"
-                        disabled={resource.usesRemaining <= 0}
-                        onClick={() => {
-                          onBeforeUndoableAction();
-                          onUpdateCharacter((prev) => ({
-                            ...prev,
-                            classResources: prev.classResources?.map((item) => item.id === resource.id
-                              ? { ...item, usesRemaining: Math.max(0, item.usesRemaining - 1) }
-                              : item),
-                          }));
-                        }}
-                        aria-label={`Gastar uso de ${resource.name}`}
-                        className="rounded bg-[#2b2932] px-2 py-1 text-xs text-gray-200 disabled:opacity-40"
-                      >
-                        −
-                      </button>
-                      <span className="min-w-10 text-center font-mono text-xs text-[var(--theme-primary,#fbbf24)]">
-                        {resource.usesRemaining}/{resource.usesMax}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={resource.usesRemaining >= resource.usesMax}
-                        onClick={() => onUpdateCharacter((prev) => ({
-                          ...prev,
-                          classResources: prev.classResources?.map((item) => item.id === resource.id
-                            ? { ...item, usesRemaining: Math.min(item.usesMax, item.usesRemaining + 1) }
-                            : item),
-                        }))}
-                        aria-label={`Recuperar uso de ${resource.name}`}
-                        className="rounded bg-[#2b2932] px-2 py-1 text-xs text-gray-200 disabled:opacity-40"
-                      >
-                        +
-                      </button>
+                      {Array.from({ length: resource.usesMax }).map((_, idx) => {
+                        const isAvailable = idx < resource.usesRemaining;
+                        return (
+                          <Pip
+                            key={`res-${resource.id}-${idx}`}
+                            used={!isAvailable}
+                            onClick={() => {
+                              onBeforeUndoableAction();
+                              if (isAvailable && onTriggerBurst) onTriggerBurst();
+                              onUpdateCharacter((prev) => ({
+                                ...prev,
+                                classResources: prev.classResources?.map((item) => item.id === resource.id
+                                  ? { ...item, usesRemaining: isAvailable ? item.usesRemaining - 1 : item.usesRemaining + 1 }
+                                  : item),
+                              }));
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}

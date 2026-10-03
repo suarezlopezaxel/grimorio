@@ -12,6 +12,7 @@ import { combatFlagForAction, trackedActionForActionType, trackedActionForSpell 
 import { upcastDamage } from '../lib/upcasting';
 
 import { ClassTheme } from '../types';
+import { Pip, Divider } from './ThemedParts';
 
 interface CombatTurnViewProps {
   combatState: CombatRoundState;
@@ -41,6 +42,7 @@ interface CombatTurnViewProps {
   onNotify: (message: string) => void;
   onBeforeUndoableAction: () => void;
   theme?: ClassTheme;
+  onTriggerBurst?: () => void;
 }
 
 export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
@@ -60,6 +62,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
   onLongRest,
   onNotify,
   onBeforeUndoableAction,
+  onTriggerBurst,
 }) => {
   // Track cards expended in the current round
   const [roundExpendedCards, setRoundExpendedCards] = useState<Record<string, boolean>>({});
@@ -393,7 +396,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
 
   return (
     <div
-      className={`character-sheet character-sheet--combat character-sheet--${character.classKey ?? 'mago'} flex flex-col w-full pb-16 transition-opacity ${turnFlash ? 'opacity-75' : 'opacity-100'}`}
+      className={`character-sheet character-sheet--combat flex flex-col w-full pb-16 transition-opacity ${turnFlash ? 'opacity-75' : 'opacity-100'}`}
       style={
         theme
           ? ({
@@ -559,7 +562,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         ).total}
       />
 
-      <section className="mb-6 rounded-xl border border-red-400/20 bg-[#1c1a24] p-4" aria-label="Condiciones activas">
+      <section className="themed-panel mb-6 rounded-xl border border-red-400/20 bg-[#1c1a24] p-4" aria-label="Condiciones activas">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-garamond text-lg font-bold text-white">Condiciones</h2>
           <span className="text-[10px] text-gray-400">
@@ -567,7 +570,8 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
             {character.exhaustionLevel ? ` · Velocidad efectiva ${effectiveBaseSpeed} ft` : ''}
           </span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <Divider />
+        <div className="flex flex-wrap gap-2 mt-3">
           {Object.values(CONDITIONS).map((condition) => {
             const isActive = activeConditions.includes(condition.id);
             return (
@@ -593,12 +597,13 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         </div>
       </section>
 
-      <section className="mb-6 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20 bg-[#1c1a24] p-4" aria-label="Efectos activos">
+      <section className="themed-panel mb-6 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20 bg-[#1c1a24] p-4" aria-label="Efectos activos">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-garamond text-lg font-bold text-white">Efectos activos</h2>
           <span className="text-[10px] text-gray-500">La duración avanza al pulsar Siguiente Turno</span>
         </div>
-        <div className="mb-3 flex flex-wrap gap-2">
+        <Divider />
+        <div className="mb-3 flex flex-wrap gap-2 mt-3">
           {[
             { name: 'Bendición', rounds: 10 },
             { name: 'Marca del cazador', rounds: 60 },
@@ -998,7 +1003,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                 <div
                   key={card.id}
                   onClick={() => handleToggleCardExpend(card.id)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer relative group ${
+                  className={`themed-panel p-4 rounded-xl border transition-all cursor-pointer relative group ${
                     isExpended
                       ? 'bg-[#15131b]/60 border-white/5 opacity-50 grayscale'
                       : 'bg-[#1c1a24] border-purple-500/20 hover:border-purple-500/50 shadow-md hover:-translate-y-0.5'
@@ -1052,22 +1057,14 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                       </span>
                       <div className="flex items-center gap-1.5">
                         {boxes.map((checked, bIdx) => (
-                          <button
+                          <Pip
                             key={`box-${card.id}-${bIdx}`}
-                            onClick={(e) => handleToggleResourceBox(card.id, bIdx, e)}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                              checked
-                                ? 'bg-purple-500 border-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.7)]'
-                                : 'bg-[#2b2932] border-white/20 hover:border-purple-400'
-                            }`}
-                            title={checked ? 'Usado (clic para restaurar)' : 'Disponible (clic para gastar)'}
-                          >
-                            {checked && (
-                              <span className="material-symbols-outlined text-white text-[10px] font-bold">
-                                check
-                              </span>
-                            )}
-                          </button>
+                            used={checked}
+                            onClick={(e) => {
+                              if (!checked && onTriggerBurst) onTriggerBurst();
+                              handleToggleResourceBox(card.id, bIdx, e);
+                            }}
+                          />
                         ))}
                       </div>
                       {card.consumesResource && (card.resourceUsed ?? 0) > 0 && (

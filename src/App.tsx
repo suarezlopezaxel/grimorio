@@ -48,6 +48,8 @@ import { normalizeCharacterSheet, restoreAppSettings } from './lib/persistence';
 import { removeConcentrationEffects } from './lib/activeEffects';
 import { rechargeClassResources } from './lib/classProgression';
 
+import { ThemedRoot } from './components/ThemedParts';
+
 const PERSISTENCE_VERSION = 1;
 
 interface UndoSnapshot {
@@ -89,6 +91,8 @@ export function App() {
     PERSISTENCE_VERSION,
   );
   const [undoHistory, setUndoHistory] = useState<UndoSnapshot[]>([]);
+  const [burstCount, setBurstCount] = useState(0);
+  const triggerBurst = () => setBurstCount(b => b + 1);
   const [settings, setSettings, , settingsSaveStatus] = usePersistentState<AppSettings>(
     'grimorio:settings',
     { autoTrackActions: false },
@@ -445,7 +449,10 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#14121b] text-[#e6e0ee] flex">
+    <ThemedRoot cls={currentClass} element={currentElement} state="default" burst={burstCount}>
+      <div
+        className="min-h-screen bg-transparent text-[#e6e0ee] flex"
+      >
       {/* Notification Toast */}
       {bannerMessage && (
         <div className="fixed top-24 right-4 z-50 bg-[#1c1a24] text-white px-4 py-2.5 rounded-lg border border-[var(--theme-primary,#fbbf24)] shadow-2xl flex items-center gap-2 font-medium text-xs animate-bounce">
@@ -510,6 +517,7 @@ export function App() {
               onLongRest={handleLongRest}
               onBeforeUndoableAction={recordUndo}
               onNotify={showBanner}
+              onTriggerBurst={triggerBurst}
             />
           )}
 
@@ -532,6 +540,7 @@ export function App() {
               onLongRest={handleLongRest}
               onNotify={showBanner}
               onBeforeUndoableAction={recordUndo}
+              onTriggerBurst={triggerBurst}
             />
           )}
 
@@ -605,6 +614,7 @@ export function App() {
         }}
       />
     </div>
+    </ThemedRoot>
   );
 }
 export default App;
