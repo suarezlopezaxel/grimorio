@@ -538,6 +538,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   </span>
                 </div>
                 {character.hasInspiration && (
+                  <span className="inspiracion-badge">INSPIRACIÓN ON</span>
                 )}
               </button>
               <button
