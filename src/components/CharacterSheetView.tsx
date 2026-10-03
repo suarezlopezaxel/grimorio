@@ -492,17 +492,6 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       className={`character-sheet flex flex-col w-full pb-16`}
       onMouseEnter={() => setFxOn(true)}
       onMouseLeave={() => setFxOn(false)}
-      style={
-        themeResolved
-          ? ({
-              ['--class-theme-primary' as any]: themeResolved.colors.primary,
-              ['--class-theme-primary-container' as any]: themeResolved.colors.primaryContainer,
-              ['--class-theme-secondary' as any]: themeResolved.colors.secondary,
-              ['--class-theme-secondary-container' as any]: themeResolved.colors.secondaryContainer,
-              ['--class-theme-accent' as any]: themeResolved.colors.accent,
-            } as React.CSSProperties)
-          : undefined
-      }
     >
       {/* ========================================================== */}
       {/* 1. ENCABEZADO: NOMBRE, CLASE, NIVEL Y ESPECIE (EDITABLES) */}
@@ -1342,21 +1331,24 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             {/* Display de PG actual y máximo con botones rápidos */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-[#211e28]/70 p-4 rounded-xl border border-white/5 mb-4">
               <div className="flex items-center gap-3">
-                {/* Botones -5 y -1 */}
+                {/* Botones -5 y -1 (style glifo/pip temático) */}
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleModifyHp(-5, damageType)}
-                    className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-xs border border-white/5 flex items-center justify-center transition-colors"
+                    className="group w-8 h-8 rounded-full border border-[color:var(--c-border)]/60 bg-[color:var(--c-surface)]/30 hover:bg-[color:var(--c-surface)]/60 text-[color:var(--c-accent)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] flex items-center justify-center transition-colors"
                     title="Restar 5 PG"
+                    aria-label="Restar 5 PG"
                   >
-                    -5
+                    <span className="font-bold text-xs tabular-nums">-5</span>
+                    <span className="pointer-events-none absolute opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
                     onClick={() => handleModifyHp(-1, damageType)}
-                    className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-sm border border-white/5 flex items-center justify-center transition-colors"
+                    className="group w-8 h-8 rounded-full border border-[color:var(--c-border)]/60 bg-[color:var(--c-surface)]/30 hover:bg-[color:var(--c-surface)]/60 text-[color:var(--c-accent)] flex items-center justify-center transition-colors"
                     title="Restar 1 PG"
+                    aria-label="Restar 1 PG"
                   >
-                    -1
+                    <span className="font-bold text-sm tabular-nums">-1</span>
                   </button>
                 </div>
                 <label className="flex items-center gap-1 text-[10px] text-gray-400">
@@ -1429,21 +1421,23 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   <span className="text-xs text-gray-400 uppercase font-bold ml-1">PG</span>
                 </div>
 
-                {/* Botones +1 y +5 */}
+                {/* Botones +1 y +5 (style glifo/pip temático) */}
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleModifyHp(1)}
-                    className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 font-bold text-sm border border-white/5 flex items-center justify-center transition-colors"
+                    className="group w-8 h-8 rounded-full border border-[color:var(--c-border)]/60 bg-[color:var(--c-surface)]/30 hover:bg-[color:var(--c-surface)]/60 text-[color:var(--c-accent)] flex items-center justify-center transition-colors"
                     title="Sumar 1 PG"
+                    aria-label="Sumar 1 PG"
                   >
-                    +1
+                    <span className="font-bold text-sm tabular-nums">+1</span>
                   </button>
                   <button
                     onClick={() => handleModifyHp(5)}
-                    className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-white/5 flex items-center justify-center transition-colors"
+                    className="group w-8 h-8 rounded-full border border-[color:var(--c-border)]/60 bg-[color:var(--c-surface)]/30 hover:bg-[color:var(--c-surface)]/60 text-[color:var(--c-accent)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] flex items-center justify-center transition-colors"
                     title="Sumar 5 PG"
+                    aria-label="Sumar 5 PG"
                   >
-                    +5
+                    <span className="font-bold text-xs tabular-nums">+5</span>
                   </button>
                 </div>
               </div>

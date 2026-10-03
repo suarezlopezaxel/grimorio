@@ -13,10 +13,18 @@ const Ctx = createContext('mago');
  */
 export function ThemedRoot({ cls, element = 'normal', sub = '', state = '', burst = 0, children }:
   { cls: string; element?: string; sub?: string; state?: string; burst?: number; children: ReactNode }) {
+  // Debug: ensure we always render the app tree.
+
   const k = themeKey(cls);
   return (
     <Ctx.Provider value={k}>
-      <div className="themed-root" data-class={k} data-element={element.toLowerCase()} data-sub={sub} data-state={state}>
+      <div
+        className="themed-root"
+        data-class={k}
+        data-element={element.toLowerCase()}
+        data-sub={sub}
+        data-state={state}
+      >
         <FxLayer themeKey={k} tint={element + sub} burst={burst} />
         <div className="themed-content">{children}</div>
       </div>

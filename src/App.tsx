@@ -126,17 +126,15 @@ export function App() {
   const isPersistenceSaved = persistenceStatuses.includes('saved') && !hasPersistenceError;
 
   // Dynamic CSS Variables sync based on selected Class & Element
+  // Compatibilidad: algunos componentes legacy aún usan estas vars.
   useEffect(() => {
     const theme = CLASS_THEMES[currentClass] || CLASS_THEMES.mago;
     const elem = ELEMENT_ACCENTS[currentElement];
 
     const root = document.documentElement;
-    // Primary & containers
     root.style.setProperty('--theme-primary', currentElement !== 'neutral' ? elem.color : theme.colors.primary);
     root.style.setProperty('--theme-primary-container', theme.colors.primaryContainer);
     root.style.setProperty('--theme-on-primary-container', theme.colors.onPrimaryContainer);
-
-    // Secondary & glow
     root.style.setProperty('--theme-secondary', theme.colors.secondary);
     root.style.setProperty('--theme-secondary-container', theme.colors.secondaryContainer);
     root.style.setProperty('--theme-on-secondary-container', theme.colors.onSecondaryContainer);

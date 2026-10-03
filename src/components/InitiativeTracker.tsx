@@ -264,7 +264,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                           type="number"
                           value={combatant.initiative}
                           onChange={(event) => updateCombatantField(combatant.id, (current) => ({ ...current, initiative: Number(event.target.value) || 0 }))}
-                          className="w-12 rounded border border-white/10 bg-[#15131b] px-1 py-0.5 text-center text-xs text-white"
+                          className="w-12 rounded border border-white/10 bg-[#15131b] px-1 py-0.5 text-center text-xs text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           aria-label={`Iniciativa de ${combatant.name}`}
                         />
                       </label>
@@ -275,7 +275,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                           value={combatant.isCurrentCharacter ? character.initiative : combatant.initiativeBonus ?? 0}
                           disabled={combatant.isCurrentCharacter}
                           onChange={(event) => updateCombatantField(combatant.id, (current) => ({ ...current, initiativeBonus: Number(event.target.value) || 0 }))}
-                          className="w-12 rounded border border-white/10 bg-[#15131b] px-1 py-0.5 text-center text-xs text-white disabled:opacity-60"
+                          className="w-12 rounded border border-white/10 bg-[#15131b] px-1 py-0.5 text-center text-xs text-white disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           aria-label={`Bono de iniciativa de ${combatant.name}`}
                         />
                       </label>
