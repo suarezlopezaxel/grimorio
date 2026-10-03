@@ -537,6 +537,9 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     {character.hasInspiration ? 'auto_awesome' : 'close'}
                   </span>
                 </div>
+                {character.hasInspiration && (
+                  <div className="fx-bardo-notes" aria-hidden />
+                )}
               </button>
               <button
                 onClick={() => {
