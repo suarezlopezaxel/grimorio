@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { CharacterSheet, TacticalCard, ClassKey } from '../types';
+import { CharacterSheet, TacticalCard, ClassKey, CombatRoundState } from '../types';
+import {
+  isCharacterSheet,
+  isCombatRoundState,
+  isRecord,
+  isTacticalCardArray,
+  normalizeCharacterSheet,
+} from '../lib/persistence';
 
 interface ManageSheetModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentCharacter: CharacterSheet;
   currentCards: TacticalCard[];
-  onLoadCharacter: (char: CharacterSheet, cards?: TacticalCard[], classKey?: ClassKey) => void;
+  currentCombat: CombatRoundState;
+  onStorageError: (error: unknown) => void;
+  onLoadCharacter: (
+    char: CharacterSheet,
+    cards?: TacticalCard[],
+    classKey?: ClassKey,
+    combat?: CombatRoundState,
+  ) => void;
   onResetDefaults: () => void;
 }
 
@@ -19,6 +33,7 @@ interface SavedSlot {
   charData: CharacterSheet;
   cardsData: TacticalCard[];
   classKey?: ClassKey;
+  combatData?: CombatRoundState;
 }
 
 export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
@@ -26,6 +41,8 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
   onClose,
   currentCharacter,
   currentCards,
+  currentCombat,
+  onStorageError,
   onLoadCharacter,
   onResetDefaults,
 }) => {
@@ -39,11 +56,15 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
-          setSavedSlots(JSON.parse(stored));
+          const parsed: unknown = JSON.parse(stored);
+          if (!Array.isArray(parsed)) throw new Error('La bóveda guardada no tiene un formato válido.');
+          setSavedSlots(parsed as SavedSlot[]);
         }
-      } catch {}
+      } catch (error) {
+        onStorageError(error);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, onStorageError]);
 
   if (!isOpen) return null;
 
@@ -63,13 +84,16 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
       charData: currentCharacter,
       cardsData: currentCards,
       classKey: currentCharacter.classKey,
+      combatData: currentCombat,
     };
 
     const updated = [newSlot, ...savedSlots.slice(0, 9)];
     setSavedSlots(updated);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    } catch (error) {
+      onStorageError(error);
+    }
     setNewSlotName('');
   };
 
@@ -78,13 +102,16 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
     setSavedSlots(updated);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {}
+    } catch (error) {
+      onStorageError(error);
+    }
   };
 
   const handleExportJson = () => {
     const exportData = {
       character: currentCharacter,
       cards: currentCards,
+      combat: currentCombat,
       exportedAt: new Date().toISOString(),
     };
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
@@ -109,11 +136,32 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const parsed = JSON.parse(event.target?.result as string);
-        const importedCharacter = parsed.character || parsed;
-        if (importedCharacter?.id && importedCharacter?.name) {
-          onLoadCharacter(importedCharacter, parsed.cards, importedCharacter.classKey);
+        const result = event.target?.result;
+        if (typeof result !== 'string') throw new Error('El archivo no se pudo leer como texto.');
+        const parsed: unknown = JSON.parse(result);
+        const envelope = isRecord(parsed) ? parsed : null;
+        const importedCharacter = envelope && isRecord(envelope.character)
+          ? envelope.character
+          : parsed;
+        if (isCharacterSheet(importedCharacter)) {
+          const character = normalizeCharacterSheet(importedCharacter);
+          if (envelope && 'cards' in envelope
+            && !isTacticalCardArray(envelope.cards)) {
+            alert('El archivo no tiene un formato de ficha JSON válido.');
+            return;
+          }
+          if (envelope && 'combat' in envelope && !isCombatRoundState(envelope.combat)) {
+            alert('El archivo no tiene un formato de ficha JSON válido.');
+            return;
+          }
+          const importedCards = envelope && isTacticalCardArray(envelope.cards) ? envelope.cards : undefined;
+          const importedCombat = envelope && isCombatRoundState(envelope.combat)
+            ? envelope.combat
+            : undefined;
+          onLoadCharacter(character, importedCards, character.classKey, importedCombat);
           onClose();
+        } else {
+          alert('El archivo no tiene un formato de ficha JSON válido.');
         }
       } catch {
         alert('El archivo no tiene un formato de ficha JSON válido.');
@@ -198,7 +246,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
-                        onLoadCharacter(slot.charData, slot.cardsData, slot.classKey);
+                        onLoadCharacter(slot.charData, slot.cardsData, slot.classKey, slot.combatData);
                         onClose();
                       }}
                       className="px-3 py-1 rounded bg-[var(--theme-secondary-container,#571bc1)] text-white text-xs font-semibold hover:brightness-110"

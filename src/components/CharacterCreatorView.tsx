@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { CharacterSheet, AbilityCode, ClassKey, WeaponItem, ArmorItem, SpellDefinition, FeatDefinition } from '../types';
+import React, { useEffect, useState } from 'react';
+import { CharacterSheet, AbilityCode, ClassKey, WeaponItem, ArmorItem, SpellDefinition, FeatDefinition, ProficiencyLevel } from '../types';
 import { CLASS_THEMES } from '../themes';
+import { classProgressionFor } from '../data/classes';
+import { classResourcesForLevel, spellSlotsForClassLevel } from '../lib/classProgression';
+import { speciesStartingTraits } from '../data/species';
+import { isValidUpcastDice } from '../lib/upcasting';
 
 interface CharacterCreatorViewProps {
   onCharacterCreated: (character: CharacterSheet, classKey: ClassKey) => void;
@@ -127,6 +131,9 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
     },
   ]);
   const [newSpellName, setNewSpellName] = useState('');
+  const [newSpellLevel, setNewSpellLevel] = useState(0);
+  const [newSpellDamage, setNewSpellDamage] = useState('1d6');
+  const [newSpellUpcast, setNewSpellUpcast] = useState('');
 
   // Calculations
   const calculateMod = (val: number) => Math.floor((val - 10) / 2);
@@ -156,6 +163,29 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
   const savingThrows = classSavingThrows[selectedClassKey];
   const spellKey = classKeyAttributes[selectedClassKey];
   const spellKeyMod = calculateMod(scores[spellKey]);
+  const classProgression = classProgressionFor(selectedClassKey);
+  const invalidCreatorUpcast = !!newSpellUpcast.trim() && !isValidUpcastDice(newSpellUpcast);
+  const maxSpellLevel = classProgression?.spellSlots?.[level]?.reduce(
+    (highest, slots, index) => slots > 0 ? index + 1 : highest,
+    0,
+  ) ?? 9;
+
+  useEffect(() => {
+    if (!classProgression) return;
+    setSelectedSkills((previous) => {
+      const selected = previous.filter((skill) => classProgression.skillChoices.includes(skill))
+        .slice(0, classProgression.skillProficiencies);
+      for (const option of classProgression.skillChoices) {
+        if (selected.length >= classProgression.skillProficiencies) break;
+        if (!selected.includes(option)) selected.push(option);
+      }
+      return selected;
+    });
+  }, [selectedClassKey]);
+
+  useEffect(() => {
+    setNewSpellLevel((previous) => Math.min(previous, maxSpellLevel));
+  }, [maxSpellLevel]);
 
   // Roll 4d6 drop lowest
   const handleRoll4d6 = () => {
@@ -188,18 +218,43 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
 
   // Toggle Skill
   const handleToggleSkill = (sName: string) => {
-    setSelectedSkills((prev) =>
-      prev.includes(sName) ? prev.filter((x) => x !== sName) : [...prev, sName]
-    );
+    setSelectedSkills((prev) => {
+      if (prev.includes(sName)) return prev.filter((skill) => skill !== sName);
+      if (classProgression && (
+        !classProgression.skillChoices.includes(sName)
+        || prev.length >= classProgression.skillProficiencies
+      )) return prev;
+      return [...prev, sName];
+    });
   };
 
   // Add Homebrew Skill
   const handleAddHomebrewSkill = () => {
-    if (newHomebrewSkillName.trim()) {
+    if (newHomebrewSkillName.trim() && !classProgression) {
       setHomebrewSkills((prev) => [...prev, newHomebrewSkillName.trim()]);
       setSelectedSkills((prev) => [...prev, newHomebrewSkillName.trim()]);
       setNewHomebrewSkillName('');
     }
+  };
+
+  const handleAddSpell = () => {
+    if (!newSpellName.trim() || invalidCreatorUpcast) return;
+    const spell: SpellDefinition = {
+      id: `spl-${Date.now()}`,
+      name: newSpellName.trim(),
+      level: newSpellLevel,
+      school: 'Evocación',
+      castingTime: '1 Acción',
+      range: '60 ft',
+      components: 'V, S',
+      duration: 'Instantáneo',
+      attackOrDc: 'CD 15 DES',
+      damageOrHeal: newSpellDamage,
+      description: 'Conjuro añadido durante la creación del personaje.',
+      ...(newSpellUpcast.trim() ? { upcast: { dicePerLevel: newSpellUpcast.trim() } } : {}),
+    };
+    setSpells((previous) => [...previous, spell]);
+    setNewSpellName('');
   };
 
   // Add Homebrew Weapon
@@ -255,6 +310,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
     };
     const baseHp = (hitDie === 'd12' ? 12 : hitDie === 'd10' ? 10 : hitDie === 'd8' ? 8 : 6);
     const calculatedHp = baseHp + finalMods.CON + (level - 1) * (Math.floor(baseHp / 2) + 1 + finalMods.CON);
+    const speciesData = speciesStartingTraits(race);
 
     const fullSkills = [
       { name: 'Acrobacias', attr: 'DES' as const },
@@ -277,12 +333,12 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
       { name: 'Interpretación', attr: 'CAR' as const },
       ...homebrewSkills.map((hb) => ({ name: hb, attr: 'INT' as const })),
     ].map((sk) => {
-      const isProf = selectedSkills.includes(sk.name);
+      const isProf = selectedSkills.includes(sk.name) || !!speciesData?.skillProficiencies.includes(sk.name);
       const attrMod = finalMods[sk.attr];
       return {
         name: sk.name,
         attr: sk.attr,
-        isProficient: isProf,
+        proficiencyLevel: (isProf ? 'proficient' : 'none') as ProficiencyLevel,
         modifier: isProf ? attrMod + proficiencyBonus : attrMod,
         isHomebrew: homebrewSkills.includes(sk.name),
       };
@@ -307,7 +363,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
       initiative: finalMods.DES,
       speedFeet,
       proficiencyBonus,
-      passivePerception: 10 + finalMods.SAB + (selectedSkills.includes('Percepción') ? proficiencyBonus : 0),
+      passivePerception: 10 + finalMods.SAB + (selectedSkills.includes('Percepción') || !!speciesData?.skillProficiencies.includes('Percepción') ? proficiencyBonus : 0),
       spellSaveDc: 8 + proficiencyBonus + finalMods[spellKey],
       spellAttackBonus: proficiencyBonus + finalMods[spellKey],
 
@@ -328,23 +384,41 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
 
       skills: fullSkills,
 
-      spellSlots: [
-        { tier: 1, max: 4, current: 4 },
-        { tier: 2, max: 2, current: 2 },
-      ],
+      spellSlots: classProgression?.spellSlots
+        ? spellSlotsForClassLevel(selectedClassKey, level)
+        : [
+          { tier: 1, max: 4, current: 4 },
+          { tier: 2, max: 2, current: 2 },
+        ],
       preparedSpellsCount: Math.max(1, level + spellKeyMod),
 
       weapons,
       feats,
       spells,
+      classResources: classResourcesForLevel(selectedClassKey, level),
 
       traits: [
-        {
-          title: `Rasgo de ${CLASS_THEMES[selectedClassKey].name}`,
-          badge: 'CLASE',
-          badgeType: 'action',
-          description: `Canaliza los dones de la senda heroica de ${CLASS_THEMES[selectedClassKey].name}.`,
-        },
+        ...(speciesData?.traits.map((trait) => ({
+          title: trait.name,
+          badge: 'ESPECIE',
+          badgeType: 'neutral' as const,
+          description: trait.description,
+        })) ?? []),
+        ...(classProgression
+          ? classProgression.startingTraits
+            .filter((trait) => level >= trait.minLevel)
+            .map((trait) => ({
+              title: trait.name,
+              badge: 'CLASE',
+              badgeType: 'action' as const,
+              description: trait.description,
+            }))
+          : [{
+            title: `Rasgo de ${CLASS_THEMES[selectedClassKey].name}`,
+            badge: 'CLASE',
+            badgeType: 'action' as const,
+            description: `Canaliza los dones de la senda heroica de ${CLASS_THEMES[selectedClassKey].name}.`,
+          }]),
         ...feats.map((f) => ({
           title: f.name,
           badge: 'DOTE',
@@ -826,10 +900,10 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
               {/* Selección de Habilidades */}
               <div>
                 <label className="block text-xs font-runic text-gray-400 uppercase mb-2">
-                  Competencias en Habilidades ({selectedSkills.length} seleccionadas)
+                  Competencias en Habilidades ({selectedSkills.length}{classProgression ? `/${classProgression.skillProficiencies}` : ''} seleccionadas)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {[
+                  {(classProgression ? classProgression.skillChoices : [
                     'Acrobacias',
                     'Arcanos',
                     'Atletismo',
@@ -849,17 +923,21 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     'Trato con Animales',
                     'Interpretación',
                     ...homebrewSkills,
-                  ].map((sName) => {
+                  ]).map((sName) => {
                     const isSelected = selectedSkills.includes(sName);
+                    const selectionLimitReached = !!classProgression
+                      && selectedSkills.length >= classProgression.skillProficiencies
+                      && !isSelected;
                     return (
                       <button
                         key={sName}
                         type="button"
+                        disabled={selectionLimitReached}
                         onClick={() => handleToggleSkill(sName)}
                         className={`flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
                           isSelected
                             ? 'bg-[var(--theme-primary,#fbbf24)]/15 border-[var(--theme-primary,#fbbf24)] text-white font-bold'
-                            : 'bg-[#0f0d16] border-white/5 text-gray-400 hover:bg-[#211e28]'
+                            : 'bg-[#0f0d16] border-white/5 text-gray-400 hover:bg-[#211e28] disabled:opacity-40'
                         }`}
                       >
                         <span className="truncate">{sName}</span>
@@ -886,7 +964,8 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                 <button
                   type="button"
                   onClick={handleAddHomebrewSkill}
-                  className="px-3 py-1.5 rounded bg-[var(--theme-secondary-container,#571bc1)] text-white text-xs font-bold"
+                  disabled={!!classProgression}
+                  className="px-3 py-1.5 rounded bg-[var(--theme-secondary-container,#571bc1)] text-white text-xs font-bold disabled:opacity-40"
                 >
                   + Añadir Homebrew
                 </button>
@@ -971,6 +1050,61 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                       className="text-xs bg-[#211e28] text-white px-2.5 py-1 rounded-lg border border-white/5"
                     >
                       {w.name} ({w.damage})
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-[#0f0d16] p-3 rounded-lg border border-white/5">
+                <span className="text-xs font-runic text-gray-300 font-bold uppercase block mb-2">
+                  Conjuros
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  <input
+                    value={newSpellName}
+                    onChange={(event) => setNewSpellName(event.target.value)}
+                    placeholder="Nombre del conjuro"
+                    className="col-span-2 rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white sm:col-span-2"
+                  />
+                  <select
+                    value={newSpellLevel}
+                    onChange={(event) => setNewSpellLevel(Number(event.target.value))}
+                    aria-label="Nivel de conjuro"
+                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                  >
+                    {Array.from({ length: maxSpellLevel + 1 }, (_, spellLevel) => (
+                      <option key={spellLevel} value={spellLevel}>{spellLevel === 0 ? 'Truco' : `Nivel ${spellLevel}`}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={newSpellDamage}
+                    onChange={(event) => setNewSpellDamage(event.target.value)}
+                    placeholder="Daño / efecto"
+                    aria-label="Daño o efecto de conjuro"
+                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                  />
+                  <input
+                    value={newSpellUpcast}
+                    onChange={(event) => setNewSpellUpcast(event.target.value)}
+                    placeholder="Extra por nivel: 1d6"
+                    aria-label="Dados extra por nivel superior"
+                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={!newSpellName.trim() || invalidCreatorUpcast}
+                  onClick={handleAddSpell}
+                  className="mt-2 rounded bg-[var(--theme-secondary-container,#571bc1)] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+                >
+                  Añadir conjuro
+                </button>
+                {invalidCreatorUpcast && <p role="alert" className="mt-1 text-[10px] text-red-300">Usa solo dados positivos, por ejemplo 1d6.</p>}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {spells.map((spell) => (
+                    <span key={spell.id} className="rounded bg-[#211e28] px-2 py-1 text-[10px] text-gray-200">
+                      {spell.name} · {spell.level === 0 ? 'Truco' : `Nv. ${spell.level}`}
+                      {spell.upcast ? ` · +${spell.upcast.dicePerLevel}/nivel` : ''}
                     </span>
                   ))}
                 </div>

@@ -43,7 +43,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
           <div className="flex items-center gap-1.5">
             <span className="material-symbols-outlined text-sm text-[var(--theme-primary,#fbbf24)]">casino</span>
             <span className="font-runic text-xs font-bold uppercase tracking-wider text-[var(--theme-primary,#fbbf24)]">
-              {latestRoll?.title || 'Tirada Arcana'}
+              {latestRoll?.isCriticalDamage ? '¡CRÍTICO! ' : ''}{latestRoll?.title || 'Tirada Arcana'}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -70,10 +70,16 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
           <div className="flex items-center justify-between bg-[#1c1a24] p-3 rounded-lg border border-white/5">
             <div className="flex flex-col">
               <span className="text-xs text-gray-300 font-mono">
-                {latestRoll.diceCount || 1}d{latestRoll.diceSides || 20} ({latestRoll.d20}) {latestRoll.modifier >= 0 ? `+ ${latestRoll.modifier}` : `- ${Math.abs(latestRoll.modifier)}`}
+                {latestRoll.diceFormula
+                  ? `${latestRoll.diceFormula} (dados: ${latestRoll.d20})`
+                  : `${latestRoll.diceCount || 1}d${latestRoll.diceSides || 20} (${latestRoll.d20}) ${latestRoll.modifier >= 0 ? `+ ${latestRoll.modifier}` : `- ${Math.abs(latestRoll.modifier)}`}`}
               </span>
               <span className="text-[11px] font-medium tracking-wide">
-                {latestRoll.isNat20 ? (
+                {latestRoll.isCriticalDamage ? (
+                  <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">flare</span> ¡CRÍTICO!
+                  </span>
+                ) : latestRoll.isNat20 ? (
                   <span className="text-amber-400 font-bold flex items-center gap-1">
                     <span className="material-symbols-outlined text-xs">flare</span> ¡CRÍTICO NATURAL (20)!
                   </span>
@@ -91,7 +97,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
             <div className="flex items-baseline gap-1">
               <span
                 className={`font-garamond text-3xl font-bold leading-none ${
-                  latestRoll.isNat20
+                  latestRoll.isNat20 || latestRoll.isCriticalDamage
                     ? 'text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]'
                     : latestRoll.isNat1
                     ? 'text-red-400'

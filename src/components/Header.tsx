@@ -8,6 +8,8 @@ interface HeaderProps {
   onSaveSheet: () => void;
   onOpenLoadModal: () => void;
   onNewSheet: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSaveSheet,
   onOpenLoadModal,
   onNewSheet,
+  onUndo,
+  canUndo,
 }) => {
   return (
     <header className="fixed top-0 left-0 lg:left-72 right-0 h-20 bg-[#14121b]/90 backdrop-blur-xl z-30 border-b border-white/5 arcane-vignette flex items-center justify-between px-4 lg:px-6 shadow-md">
@@ -52,6 +56,16 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Quick Actions & Management */}
       <div className="flex items-center gap-2 sm:gap-3">
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="flex items-center gap-1 rounded-lg border border-white/10 bg-[#211e28] px-2.5 py-1.5 text-xs font-medium text-gray-200 transition-all hover:bg-[#2b2932] disabled:cursor-not-allowed disabled:opacity-40"
+          title="Deshacer (Ctrl+Z)"
+          aria-label="Deshacer último cambio"
+        >
+          <span className="material-symbols-outlined text-sm">undo</span>
+          <span className="hidden sm:inline">Deshacer</span>
+        </button>
         {/* Guardar Ficha button */}
         <button
           onClick={onSaveSheet}

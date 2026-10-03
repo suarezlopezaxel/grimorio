@@ -1,29 +1,95 @@
-import React, { useState } from 'react';
-import { CharacterSheet, AbilityCode, AbilityScore, Skill, WeaponItem, SpellDefinition, FeatDefinition } from '../types';
+import React, { useRef, useState } from 'react';
+import { ClassTheme } from '../types';
+import { CharacterSheet, AbilityCode, Ability, AbilityScore, Skill, WeaponItem, SpellDefinition, FeatDefinition, ConcentrationState, ConditionId, DiceRollOutcome, RollKind, InventoryItem } from '../types';
+import { getAbilityModifier, getSavingThrowModifier, getSkillModifier, getSpellAttackModifier } from '../utils/characterMechanics';
+import { getHitDicePool, updateHitDiceDieSize, updateHitDicePoolForLevel } from '../lib/hitDice';
+import { concentrationDC } from '../lib/concentration';
+import { doubleDice, parseDiceExpression } from '../lib/critical';
+import { applyDamage, effectiveMaxHitPoints, effectiveSpeed } from '../lib/conditions';
+import { CONDITIONS, EXHAUSTION_RULESET } from '../data/conditions';
+import { getSkillProficiencyLevel, nextProficiencyLevel, proficiencyBonusForLevel } from '../lib/proficiency';
+import { attunedItemCount, computeAC, currencyInGold, EMPTY_CURRENCY, inventoryWeight } from '../lib/inventory';
+import { abilityScoreImprovementsBetween, applyWizardLevelUp, spellSlotsForClassLevel } from '../lib/classProgression';
+import { LevelUpDialog } from './LevelUpDialog';
+import { isValidUpcastDice } from '../lib/upcasting';
+
+const ABILITY_BY_CODE: Record<AbilityCode, Ability> = {
+  FUE: 'str',
+  DES: 'dex',
+  CON: 'con',
+  INT: 'int',
+  SAB: 'wis',
+  CAR: 'cha',
+};
+
+const PROFICIENCY_PRESENTATION = {
+  none: { label: 'Sin competencia', icon: 'radio_button_unchecked', className: 'text-gray-500' },
+  half: { label: 'Media competencia', icon: 'contrast', className: 'text-cyan-300' },
+  proficient: { label: 'Competente', icon: 'check_circle', className: 'text-[var(--theme-primary,#fbbf24)]' },
+  expertise: { label: 'Pericia', icon: 'workspace_premium', className: 'text-purple-300' },
+} as const;
 
 interface CharacterSheetViewProps {
   character: CharacterSheet;
+  theme?: ClassTheme;
+  theme?: import('../types').ClassTheme;
+  activeConditions: ConditionId[];
+  concentration: ConcentrationState | null;
+  onConcentrationChange: (concentration: ConcentrationState | null) => void;
   onUpdateCharacter: (updater: (prev: CharacterSheet) => CharacterSheet) => void;
   onRollDice: (
     label: string,
     modifier: number,
     subtext?: string,
     sides?: number,
-    count?: number
-  ) => void;
+    count?: number,
+    advantageMode?: 'normal' | 'advantage' | 'disadvantage',
+    formula?: string,
+    isCriticalDamage?: boolean,
+    rollKind?: RollKind,
+    ability?: Ability,
+  ) => DiceRollOutcome;
   onShortRest: () => void;
   onLongRest: () => void;
+  onBeforeUndoableAction: () => void;
+  onNotify: (message: string) => void;
 }
 
 export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   character,
+  theme,
+  activeConditions,
+  concentration,
+  onConcentrationChange,
   onUpdateCharacter,
   onRollDice,
   onShortRest,
   onLongRest,
+  onBeforeUndoableAction,
+  onNotify,
+  theme,
 }) => {
+  const classKey = character.classKey ?? 'mago';
+
+  // Theme is optional; prefer class-based styling.
+  const themeResolved: ClassTheme | undefined = theme;
+
+  // Theme is optional; we still allow class-based styling via class names.
+  const themeResolved: ClassTheme | undefined = theme;
   // Modal / Quick addition states for Homebrew
   const [showAddWeapon, setShowAddWeapon] = useState(false);
+  const [concentrationCheck, setConcentrationCheck] = useState<{
+    damage: number;
+    dc: number;
+    total?: number;
+  } | null>(null);
+  const hpEditStartingValue = useRef(character.currentHp);
+  const hpEditUndoCaptured = useRef(false);
+  const [lastCriticalAttack, setLastCriticalAttack] = useState<string | null>(null);
+  const [criticalDamage, setCriticalDamage] = useState<Record<string, boolean>>({});
+  const [damageType, setDamageType] = useState('');
+  const [damageModifierInput, setDamageModifierInput] = useState('');
+  const [damageModifierCategory, setDamageModifierCategory] = useState<'resistances' | 'vulnerabilities' | 'immunities'>('resistances');
   const [newWeapon, setNewWeapon] = useState<Partial<WeaponItem>>({
     name: 'Espada Lunar Homebrew',
     attackBonus: 7,
@@ -32,6 +98,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     reach: '5 ft',
     properties: 'Versátil (1d10), Rúnica',
   });
+  const [editingWeaponId, setEditingWeaponId] = useState<string | null>(null);
 
   const [showAddSpell, setShowAddSpell] = useState(false);
   const [spellFilter, setSpellFilter] = useState<'all' | number>('all');
@@ -48,6 +115,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     damageOrHeal: '3d8 Fuerza',
     description: 'Emite una onda de choque gravitatoria que repele a las criaturas.',
   });
+  const [editingSpellId, setEditingSpellId] = useState<string | null>(null);
 
   const [showAddFeat, setShowAddFeat] = useState(false);
   const [newFeat, setNewFeat] = useState<Partial<FeatDefinition>>({
@@ -56,12 +124,21 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     description: 'Puedes sumar tu bonificador de competencia al daño de un conjuro una vez por turno.',
     abilityBonuses: { INT: 2 },
   });
+  const [editingFeatId, setEditingFeatId] = useState<string | null>(null);
+
+  const [inventoryDraft, setInventoryDraft] = useState<Partial<InventoryItem>>({
+    name: '', quantity: 1, weight: 0, kind: 'gear',
+  });
+  const [editingInventoryId, setEditingInventoryId] = useState<string | null>(null);
+  const [showInventoryForm, setShowInventoryForm] = useState(false);
+  const [fxOn, setFxOn] = useState(false);
+  const [levelUpTarget, setLevelUpTarget] = useState<number | null>(null);
 
   const [showAddSkill, setShowAddSkill] = useState(false);
   const [newSkill, setNewSkill] = useState<Partial<Skill>>({
     name: 'Alquimia Prohibida',
     attr: 'INT',
-    isProficient: true,
+    proficiencyLevel: 'proficient',
   });
 
   // Calculate modifier helper
@@ -92,7 +169,10 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     ) as CharacterSheet['abilities'];
     const effectiveSkills = prev.skills.map((skill) => ({
       ...skill,
-      modifier: effectiveAbilities[skill.attr].modifier + (skill.isProficient ? prev.proficiencyBonus : 0),
+      modifier: effectiveAbilities[skill.attr].modifier + proficiencyBonusForLevel(
+        getSkillProficiencyLevel(skill),
+        prev.proficiencyBonus,
+      ),
     }));
     const keyModifier = Object.values(effectiveAbilities).find((ability) => ability.isKeyAttribute)?.modifier
       ?? effectiveAbilities.INT.modifier;
@@ -101,35 +181,150 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       feats,
       abilities: effectiveAbilities,
       skills: effectiveSkills,
-      passivePerception: 10 + effectiveAbilities.SAB.modifier + (effectiveSkills.find((skill) => skill.name === 'Percepción')?.isProficient ? prev.proficiencyBonus : 0),
+      passivePerception: 10 + effectiveAbilities.SAB.modifier + proficiencyBonusForLevel(
+        getSkillProficiencyLevel(effectiveSkills.find((skill) => skill.name === 'Percepción') ?? { proficiencyLevel: 'none' }),
+        prev.proficiencyBonus,
+      ),
       spellSaveDc: 8 + prev.proficiencyBonus + keyModifier,
       spellAttackBonus: prev.proficiencyBonus + keyModifier,
     };
   };
 
   // HP Controls
-  const handleModifyHp = (delta: number) => {
-    onUpdateCharacter((prev) => {
-      if (delta < 0) {
-        const incomingDamage = Math.abs(delta);
-        const absorbed = Math.min(prev.tempHp, incomingDamage);
-        const remainingDamage = incomingDamage - absorbed;
+  const checkConcentrationAfterDamage = (damage: number, remainingHp: number) => {
+    if (!concentration) return;
+    if (remainingHp === 0) {
+      onConcentrationChange(null);
+      setConcentrationCheck(null);
+      return;
+    }
+    setConcentrationCheck({ damage, dc: concentrationDC(damage) });
+  };
+
+  const handleModifyHp = (delta: number, damageTypeValue = '') => {
+    if (delta < 0) {
+      const incomingDamage = applyDamage(
+        Math.abs(delta),
+        damageTypeValue,
+        character.damageModifiers ?? { resistances: [], vulnerabilities: [], immunities: [] },
+      );
+      if (incomingDamage <= 0) return;
+      const absorbed = Math.min(character.tempHp, incomingDamage);
+      const remainingHp = Math.max(0, character.currentHp - (incomingDamage - absorbed));
+      onBeforeUndoableAction();
+      checkConcentrationAfterDamage(incomingDamage, remainingHp);
+      onUpdateCharacter((prev) => {
+        const tempAbsorbed = Math.min(prev.tempHp, incomingDamage);
+        const remainingDamage = incomingDamage - tempAbsorbed;
         return {
           ...prev,
-          tempHp: prev.tempHp - absorbed,
+          tempHp: prev.tempHp - tempAbsorbed,
           currentHp: Math.max(0, prev.currentHp - remainingDamage),
         };
-      }
-      return { ...prev, currentHp: Math.min(prev.maxHp, prev.currentHp + delta) };
+      });
+      return;
+    }
+    const healing = Math.min(delta, effectiveMaxHitPoints(character.maxHp, character.exhaustionLevel ?? 0) - character.currentHp);
+    if (healing <= 0) return;
+    onBeforeUndoableAction();
+    onUpdateCharacter((prev) => {
+      return { ...prev, currentHp: Math.min(effectiveMaxHitPoints(prev.maxHp, prev.exhaustionLevel ?? 0), prev.currentHp + delta) };
     });
+  };
+
+  const addDamageModifier = () => {
+    const value = damageModifierInput.trim();
+    if (!value) return;
+    onUpdateCharacter((prev) => {
+      const modifiers = prev.damageModifiers ?? { resistances: [], vulnerabilities: [], immunities: [] };
+      const current = modifiers[damageModifierCategory];
+      if (current.some((entry) => entry.localeCompare(value, undefined, { sensitivity: 'accent' }) === 0)) return prev;
+      return {
+        ...prev,
+        damageModifiers: { ...modifiers, [damageModifierCategory]: [...current, value] },
+      };
+    });
+    setDamageModifierInput('');
+  };
+
+  const removeDamageModifier = (category: 'resistances' | 'vulnerabilities' | 'immunities', value: string) => {
+    onUpdateCharacter((prev) => {
+      const modifiers = prev.damageModifiers ?? { resistances: [], vulnerabilities: [], immunities: [] };
+      return {
+        ...prev,
+        damageModifiers: {
+          ...modifiers,
+          [category]: modifiers[category].filter((entry) => entry !== value),
+        },
+      };
+    });
+  };
+
+  const saveInventoryItem = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!inventoryDraft.name?.trim()) return;
+    const itemId = editingInventoryId ?? `inv-${Date.now()}`;
+    const saved: InventoryItem = {
+      ...(character.inventory ?? []).find((item) => item.id === editingInventoryId),
+      ...inventoryDraft,
+      id: itemId,
+      name: inventoryDraft.name.trim(),
+      quantity: Math.max(1, Math.trunc(inventoryDraft.quantity ?? 1)),
+      weight: Math.max(0, inventoryDraft.weight ?? 0),
+      kind: inventoryDraft.kind ?? 'gear',
+      ...(inventoryDraft.kind === 'armor' ? {
+        armor: inventoryDraft.armor ?? { base: 10, dexCap: null, category: 'light' },
+      } : { armor: undefined }),
+      ...(inventoryDraft.kind === 'shield' ? {
+        shieldBonus: Math.max(0, inventoryDraft.shieldBonus ?? 2),
+      } : { shieldBonus: undefined }),
+    };
+    onUpdateCharacter((prev) => ({
+      ...prev,
+      inventory: editingInventoryId
+        ? (prev.inventory ?? []).map((item) => item.id === itemId ? saved : item)
+        : [...(prev.inventory ?? []), saved],
+    }));
+    setInventoryDraft({ name: '', quantity: 1, weight: 0, kind: 'gear' });
+    setEditingInventoryId(null);
+    setShowInventoryForm(false);
+  };
+
+  const beginInventoryEdit = (item: InventoryItem) => {
+    setInventoryDraft({ ...item });
+    setEditingInventoryId(item.id);
+    setShowInventoryForm(true);
+  };
+
+  const toggleAttunement = (item: InventoryItem) => {
+    if (!item.attuned && attunedItemCount(character.inventory ?? []) >= 3) {
+      window.alert('Un personaje no puede sintonizar más de 3 objetos.');
+      return;
+    }
+    onUpdateCharacter((prev) => ({
+      ...prev,
+      inventory: (prev.inventory ?? []).map((entry) => entry.id === item.id
+        ? { ...entry, attuned: !entry.attuned }
+        : entry),
+    }));
   };
 
   // Toggle Inspiration
   const handleToggleInspiration = () => {
+    const wasOn = character.hasInspiration;
     onUpdateCharacter((prev) => ({
       ...prev,
       hasInspiration: !prev.hasInspiration,
     }));
+
+    // Visual burst when spending/activating Inspiration.
+    if (!wasOn) {
+      setFxOn(true);
+
+      setTimeout(() => {
+        setFxOn(false);
+      }, 1200);
+    }
   };
 
   // Ability score base change handler
@@ -152,7 +347,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       // Recalculate related skills
       const updatedSkills = prev.skills.map((sk) => {
         if (sk.attr === code) {
-          const profMod = sk.isProficient ? prev.proficiencyBonus : 0;
+          const profMod = proficiencyBonusForLevel(getSkillProficiencyLevel(sk), prev.proficiencyBonus);
           return { ...sk, modifier: mod + profMod };
         }
         return sk;
@@ -160,7 +355,10 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
       // Recalculate passive perception if SAB
       const passivePerc = code === 'SAB' 
-        ? 10 + mod + (prev.skills.find((s) => s.name === 'Percepción')?.isProficient ? prev.proficiencyBonus : 0)
+        ? 10 + mod + proficiencyBonusForLevel(
+          getSkillProficiencyLevel(prev.skills.find((s) => s.name === 'Percepción') ?? { proficiencyLevel: 'none' }),
+          prev.proficiencyBonus,
+        )
         : prev.passivePerception;
 
       // Recalculate initiative if DES
@@ -206,12 +404,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     onUpdateCharacter((prev) => {
       const updatedSkills = prev.skills.map((sk) => {
         if (sk.name === skillName) {
-          const nextProf = !sk.isProficient;
+          const nextLevel = nextProficiencyLevel(getSkillProficiencyLevel(sk));
           const attrMod = prev.abilities[sk.attr].modifier;
-          const nextMod = nextProf ? attrMod + prev.proficiencyBonus : attrMod;
+          const nextMod = attrMod + proficiencyBonusForLevel(nextLevel, prev.proficiencyBonus);
           return {
             ...sk,
-            isProficient: nextProf,
+            proficiencyLevel: nextLevel,
+            isProficient: undefined,
+            isExpert: undefined,
             modifier: nextMod,
           };
         }
@@ -223,7 +423,10 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       if (skillName === 'Percepción') {
         const percSkill = updatedSkills.find((s) => s.name === 'Percepción');
         const sabMod = prev.abilities.SAB.modifier;
-        passivePerc = 10 + sabMod + (percSkill?.isProficient ? prev.proficiencyBonus : 0);
+        passivePerc = 10 + sabMod + proficiencyBonusForLevel(
+          getSkillProficiencyLevel(percSkill ?? { proficiencyLevel: 'none' }),
+          prev.proficiencyBonus,
+        );
       }
 
       return {
@@ -264,15 +467,52 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
     });
   };
 
-  const hpPct = Math.round((character.currentHp / (character.maxHp || 1)) * 100);
+  const effectiveMaxHp = effectiveMaxHitPoints(character.maxHp, character.exhaustionLevel ?? 0);
+  const hpPct = Math.round((character.currentHp / (effectiveMaxHp || 1)) * 100);
+  const displayedSpeed = effectiveSpeed(character.speedFeet, character.exhaustionLevel ?? 0, activeConditions);
+  const invalidUpcastDraft = !!newSpell.upcast?.dicePerLevel.trim()
+    && !isValidUpcastDice(newSpell.upcast.dicePerLevel);
+
+  const handleWizardLevelUp = (method: 'roll' | 'average') => {
+    if (levelUpTarget === null) return;
+    const oldLevel = character.level;
+    const targetLevel = levelUpTarget;
+    const hitDie = getHitDicePool(character).dieSize;
+    const hitPointGains = Array.from({ length: targetLevel - oldLevel }, () => {
+      const rolled = method === 'roll'
+        ? onRollDice('PG al subir de nivel (Mago)', 0, `1d${hitDie}`, hitDie, 1).natural
+        : Math.floor(hitDie / 2) + 1;
+      return Math.max(1, rolled + character.abilities.CON.modifier);
+    });
+    const asiLevels = abilityScoreImprovementsBetween(oldLevel, targetLevel);
+    onBeforeUndoableAction();
+    onUpdateCharacter((previous) => applyWizardLevelUp(previous, targetLevel, hitPointGains));
+    onNotify(`Nivel ${targetLevel} alcanzado.${asiLevels.length ? ` Recuerda la mejora de característica de nivel ${asiLevels.join(', ')}.` : ''}`);
+    setLevelUpTarget(null);
+  };
 
   return (
-    <div className="flex flex-col w-full pb-16">
+    <div
+      className={`character-sheet character-sheet--${classKey} flex flex-col w-full pb-16 fx-root ${fxOn ? 'fx-on' : ''}`}
+      onMouseEnter={() => setFxOn(true)}
+      onMouseLeave={() => setFxOn(false)}
+      style={
+        themeResolved
+          ? ({
+              ['--class-theme-primary' as any]: themeResolved.colors.primary,
+              ['--class-theme-primary-container' as any]: themeResolved.colors.primaryContainer,
+              ['--class-theme-secondary' as any]: themeResolved.colors.secondary,
+              ['--class-theme-secondary-container' as any]: themeResolved.colors.secondaryContainer,
+              ['--class-theme-accent' as any]: themeResolved.colors.accent,
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
       {/* ========================================================== */}
       {/* 1. ENCABEZADO: NOMBRE, CLASE, NIVEL Y ESPECIE (EDITABLES) */}
       {/* ========================================================== */}
       <div className="relative bg-[#1c1a24] rounded-xl p-5 lg:p-6 mb-6 shadow-xl border border-white/5 overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--theme-primary,rgba(251,191,36,0.1))] to-[var(--theme-secondary-container,rgba(87,27,193,0.15))] blur-3xl pointer-events-none"></div>
+        <div         className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--class-theme-primary,rgba(251,191,36,0.1))] to-[var(--class-theme-secondary-container,rgba(87,27,193,0.15))] blur-3xl pointer-events-none"></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center relative z-10">
           {/* Avatar e Inspiración */}
@@ -395,13 +635,24 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   value={character.level}
                   onChange={(e) => {
                     const newLvl = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1));
+                    if (character.classKey === 'mago' && newLvl > character.level) {
+                      setLevelUpTarget(newLvl);
+                      return;
+                    }
                     const newProf = Math.ceil(1 + newLvl / 4);
                     onUpdateCharacter((prev) => {
                       const spellcastingModifier = Object.values(prev.abilities)
                         .find((ability) => ability.isKeyAttribute)?.modifier ?? prev.abilities.INT.modifier;
+                      const hitDicePool = updateHitDicePoolForLevel(getHitDicePool(prev), newLvl);
+                      const nextSlots = prev.classKey === 'mago'
+                        ? spellSlotsForClassLevel('mago', newLvl, prev.spellSlots)
+                        : prev.spellSlots;
                       return {
                         ...prev,
                         level: newLvl,
+                        hitDice: `${newLvl}d${hitDicePool.dieSize}`,
+                        hitDicePool,
+                        spellSlots: nextSlots,
                         proficiencyBonus: newProf,
                         abilities: Object.fromEntries(
                           Object.entries(prev.abilities).map(([code, ability]) => [code, {
@@ -411,9 +662,15 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                         ) as CharacterSheet['abilities'],
                         skills: prev.skills.map((skill) => ({
                           ...skill,
-                          modifier: prev.abilities[skill.attr].modifier + (skill.isProficient ? newProf : 0),
+                          modifier: prev.abilities[skill.attr].modifier + proficiencyBonusForLevel(
+                            getSkillProficiencyLevel(skill),
+                            newProf,
+                          ),
                         })),
-                        passivePerception: 10 + prev.abilities.SAB.modifier + (prev.skills.find((skill) => skill.name === 'Percepción')?.isProficient ? newProf : 0),
+                        passivePerception: 10 + prev.abilities.SAB.modifier + proficiencyBonusForLevel(
+                          getSkillProficiencyLevel(prev.skills.find((skill) => skill.name === 'Percepción') ?? { proficiencyLevel: 'none' }),
+                          newProf,
+                        ),
                         spellSaveDc: 8 + newProf + spellcastingModifier,
                         spellAttackBonus: newProf + spellcastingModifier,
                       };
@@ -421,6 +678,16 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   }}
                   className="bg-transparent font-garamond text-xl text-[var(--theme-primary,#fbbf24)] font-bold focus:outline-none focus:bg-white/10 rounded w-12"
                 />
+                {character.classKey === 'mago' && character.level < 20 && (
+                  <button
+                    type="button"
+                    onClick={() => setLevelUpTarget(character.level + 1)}
+                    className="rounded bg-[var(--theme-secondary-container,#571bc1)] px-2 py-1 text-[10px] font-bold text-white"
+                    title="Abrir asistente de subida de nivel"
+                  >
+                    + Nv.
+                  </button>
+                )}
               </div>
               <span className="text-[10px] text-gray-400">
                 Bono Comp: +{character.proficiencyBonus}
@@ -442,7 +709,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 placeholder="Especie / Raza..."
               />
               <span className="text-[10px] text-gray-400 mt-0.5">
-                Velocidad: {character.speedFeet} ft
+                Velocidad: {displayedSpeed} ft
               </span>
             </div>
 
@@ -474,6 +741,290 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         </div>
       </div>
 
+      <section className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Estados y defensas">
+        <div className="rounded-xl border border-red-400/20 bg-[#1c1a24] p-4">
+          <h2 className="mb-2 font-garamond text-base font-bold text-white">Condiciones activas</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {activeConditions.length ? activeConditions.map((conditionId) => {
+              const condition = CONDITIONS[conditionId];
+              return (
+                <span
+                  key={conditionId}
+                  title={condition.description}
+                  className="rounded-full border border-red-400/40 bg-red-500/15 px-2.5 py-1 text-[10px] text-red-200"
+                >
+                  {condition.name}
+                </span>
+              );
+            }) : <span className="text-xs text-gray-500">Sin condiciones activas.</span>}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label htmlFor="exhaustion-level" className="text-xs text-gray-300">Agotamiento (5e {EXHAUSTION_RULESET.edition})</label>
+            <select
+              id="exhaustion-level"
+              value={character.exhaustionLevel ?? 0}
+              onChange={(event) => {
+                const level = Number(event.target.value);
+                if (level >= 6 && concentration) {
+                  onConcentrationChange(null);
+                  setConcentrationCheck(null);
+                }
+                onUpdateCharacter((prev) => ({
+                  ...prev,
+                  exhaustionLevel: level,
+                  currentHp: Math.min(
+                    prev.currentHp,
+                    effectiveMaxHitPoints(prev.maxHp, level),
+                  ),
+                }));
+              }}
+              className="rounded border border-white/10 bg-[#211e28] px-2 py-1 text-xs text-white"
+            >
+              {[0, 1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={level}>{level}</option>)}
+            </select>
+            <span className="text-[10px] text-gray-500">Velocidad efectiva: {displayedSpeed} ft</span>
+          </div>
+          {character.exhaustionLevel ? (
+            <p className="mt-1 text-[10px] text-gray-500">{EXHAUSTION_RULESET.effects[character.exhaustionLevel - 1]}</p>
+          ) : null}
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-[#1c1a24] p-4">
+          <h2 className="mb-2 font-garamond text-base font-bold text-white">Resistencias, vulnerabilidades e inmunidades</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={damageModifierCategory}
+              onChange={(event) => setDamageModifierCategory(event.target.value as typeof damageModifierCategory)}
+              aria-label="Categoría de modificador de daño"
+              className="rounded border border-white/10 bg-[#211e28] px-2 py-1 text-xs text-white"
+            >
+              <option value="resistances">Resistencia</option>
+              <option value="vulnerabilities">Vulnerabilidad</option>
+              <option value="immunities">Inmunidad</option>
+            </select>
+            <input
+              value={damageModifierInput}
+              onChange={(event) => setDamageModifierInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  addDamageModifier();
+                }
+              }}
+              placeholder="Tipo de daño…"
+              aria-label="Tipo de daño a añadir"
+              className="min-w-0 flex-1 rounded border border-white/10 bg-[#211e28] px-2 py-1 text-xs text-white"
+            />
+            <button type="button" onClick={addDamageModifier} className="rounded bg-[#2b2932] px-2 py-1 text-xs text-gray-200">Añadir</button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {([
+              ['resistances', 'Resistencia'],
+              ['vulnerabilities', 'Vulnerabilidad'],
+              ['immunities', 'Inmunidad'],
+            ] as const).flatMap(([category, label]) => (
+              (character.damageModifiers?.[category] ?? []).map((value) => (
+                <button
+                  key={`${category}:${value}`}
+                  type="button"
+                  onClick={() => removeDamageModifier(category, value)}
+                  title={`Quitar ${label.toLowerCase()} a ${value}`}
+                  className="rounded-full border border-white/10 bg-[#211e28] px-2 py-0.5 text-[10px] text-gray-300 hover:text-red-300"
+                >
+                  {label}: {value} ×
+                </button>
+              ))
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-xl border border-white/10 bg-[#1c1a24] p-4" aria-label="Inventario">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-garamond text-xl font-bold text-white">Inventario</h2>
+          <button
+            type="button"
+            onClick={() => {
+              setInventoryDraft({ name: '', quantity: 1, weight: 0, kind: 'gear' });
+              setEditingInventoryId(null);
+              setShowInventoryForm(true);
+            }}
+            className="rounded bg-[#2b2932] px-3 py-1.5 text-xs text-[var(--theme-primary,#fbbf24)]"
+          >
+            Añadir objeto
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((coin) => (
+            <label key={coin} className="text-[10px] uppercase text-gray-400">
+              {coin}
+              <input
+                type="number"
+                min="0"
+                value={(character.currency ?? EMPTY_CURRENCY)[coin]}
+                onChange={(event) => onUpdateCharacter((prev) => ({
+                  ...prev,
+                  currency: {
+                    ...EMPTY_CURRENCY,
+                    ...prev.currency,
+                    [coin]: Math.max(0, Number(event.target.value) || 0),
+                  },
+                }))}
+                className="mt-1 w-full rounded border border-white/10 bg-[#211e28] px-2 py-1 text-xs text-white"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-gray-400">
+          <span>Total: {currencyInGold(character.currency ?? EMPTY_CURRENCY).toFixed(2)} po</span>
+          <span>Peso: {inventoryWeight(character.inventory ?? [])} / {character.abilities.FUE.base * 15} lb</span>
+          {inventoryWeight(character.inventory ?? []) > character.abilities.FUE.base * 15 && (
+            <span role="alert" className="text-amber-300">Excede la capacidad de carga.</span>
+          )}
+          <span>Sintonizados: {attunedItemCount(character.inventory ?? [])}/3</span>
+        </div>
+        {showInventoryForm && (
+          <form onSubmit={saveInventoryItem} className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-[#211e28] p-3 md:grid-cols-4">
+            <input
+              required
+              value={inventoryDraft.name ?? ''}
+              onChange={(event) => setInventoryDraft((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="Nombre"
+              className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+            />
+            <input
+              value={inventoryDraft.description ?? ''}
+              onChange={(event) => setInventoryDraft((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="Descripción (opcional)"
+              className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white md:col-span-2"
+            />
+            <select
+              value={inventoryDraft.kind ?? 'gear'}
+              onChange={(event) => setInventoryDraft((prev) => ({
+                ...prev,
+                kind: event.target.value as InventoryItem['kind'],
+                armor: event.target.value === 'armor' ? prev.armor ?? { base: 10, dexCap: null, category: 'light' } : undefined,
+                shieldBonus: event.target.value === 'shield' ? prev.shieldBonus ?? 2 : undefined,
+              }))}
+              className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+            >
+              <option value="gear">Equipo</option>
+              <option value="weapon">Arma</option>
+              <option value="armor">Armadura</option>
+              <option value="shield">Escudo</option>
+              <option value="consumable">Consumible</option>
+              <option value="magic">Mágico</option>
+            </select>
+            <input
+              type="number"
+              min="1"
+              value={inventoryDraft.quantity ?? 1}
+              onChange={(event) => setInventoryDraft((prev) => ({ ...prev, quantity: Number(event.target.value) || 1 }))}
+              aria-label="Cantidad"
+              placeholder="Cantidad"
+              className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={inventoryDraft.weight ?? 0}
+              onChange={(event) => setInventoryDraft((prev) => ({ ...prev, weight: Number(event.target.value) || 0 }))}
+              aria-label="Peso unitario en libras"
+              placeholder="Peso (lb)"
+              className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+            />
+            {inventoryDraft.kind === 'armor' && (
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  value={inventoryDraft.armor?.base ?? 10}
+                  onChange={(event) => setInventoryDraft((prev) => ({ ...prev, armor: { ...(prev.armor ?? { dexCap: null, category: 'light' }), base: Number(event.target.value) || 10 } }))}
+                  aria-label="CA base de armadura"
+                  placeholder="CA base"
+                  className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+                />
+                <select
+                  value={inventoryDraft.armor?.dexCap === 0 ? 'none' : inventoryDraft.armor?.dexCap === null ? 'unlimited' : String(inventoryDraft.armor?.dexCap ?? 2)}
+                  onChange={(event) => setInventoryDraft((prev) => ({
+                    ...prev,
+                    armor: { ...(prev.armor ?? { base: 10, category: 'light' }), dexCap: event.target.value === 'none' ? 0 : event.target.value === 'unlimited' ? null : Number(event.target.value) },
+                  }))}
+                  aria-label="Límite de modificador de Destreza"
+                  className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+                >
+                  <option value="none">Sin DES</option>
+                  <option value="2">DES máximo +2</option>
+                  <option value="unlimited">DES sin límite</option>
+                </select>
+                <select
+                  value={inventoryDraft.armor?.category ?? 'light'}
+                  onChange={(event) => {
+                    const category = event.target.value as NonNullable<InventoryItem['armor']>['category'];
+                    setInventoryDraft((prev) => ({
+                      ...prev,
+                      armor: {
+                        ...(prev.armor ?? { base: 10, dexCap: null }),
+                        category,
+                        dexCap: category === 'heavy' ? 0 : category === 'medium' ? 2 : null,
+                      },
+                    }));
+                  }}
+                  aria-label="Categoría de armadura"
+                  className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+                >
+                  <option value="light">Ligera</option>
+                  <option value="medium">Media</option>
+                  <option value="heavy">Pesada</option>
+                </select>
+              </>
+            )}
+            {inventoryDraft.kind === 'shield' && (
+              <input
+                type="number"
+                min="0"
+                value={inventoryDraft.shieldBonus ?? 2}
+                onChange={(event) => setInventoryDraft((prev) => ({ ...prev, shieldBonus: Number(event.target.value) || 0 }))}
+                aria-label="Bonificador de escudo"
+                placeholder="Bonificador CA"
+                className="rounded border border-white/10 bg-[#14121b] px-2 py-1 text-xs text-white"
+              />
+            )}
+            <div className="col-span-full flex justify-end gap-2">
+              <button type="button" onClick={() => { setShowInventoryForm(false); setEditingInventoryId(null); }} className="rounded bg-white/10 px-3 py-1 text-xs text-gray-300">Cancelar</button>
+              <button type="submit" className="rounded bg-[var(--theme-primary,#fbbf24)] px-3 py-1 text-xs font-bold text-black">{editingInventoryId ? 'Guardar cambios' : 'Guardar objeto'}</button>
+            </div>
+          </form>
+        )}
+        <div className="mt-3 space-y-1">
+          {(character.inventory ?? []).map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded bg-[#211e28] px-2.5 py-2 text-xs">
+              <span className="min-w-0 flex-1 text-gray-200">{item.name} ×{item.quantity}{item.weight ? ` • ${item.weight} lb c/u` : ''}</span>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <input type="checkbox" checked={!!item.equipped} onChange={() => onUpdateCharacter((prev) => ({
+                    ...prev,
+                    inventory: (prev.inventory ?? []).map((entry) => entry.id === item.id ? { ...entry, equipped: !entry.equipped } : entry),
+                  }))} />
+                  Equipado
+                </label>
+                <label className="flex items-center gap-1 text-[10px] text-gray-400">
+                  <input type="checkbox" checked={!!item.attuned} onChange={() => toggleAttunement(item)} />
+                  Sintonizado
+                </label>
+                <button type="button" onClick={() => beginInventoryEdit(item)} title={`Editar ${item.name}`} className="text-gray-400 hover:text-white">Editar</button>
+                <button type="button" onClick={() => {
+                  onBeforeUndoableAction();
+                  onUpdateCharacter((prev) => ({ ...prev, inventory: (prev.inventory ?? []).filter((entry) => entry.id !== item.id) }));
+                }} title={`Eliminar ${item.name}`} className="text-red-300 hover:text-red-200">Borrar</button>
+              </div>
+            </div>
+          ))}
+          {!character.inventory?.length && <p className="text-xs text-gray-500">Inventario vacío.</p>}
+        </div>
+      </section>
+
       {/* ========================================================== */}
       {/* 2. SEIS TARJETAS DE CARACTERÍSTICAS (FUE, DES, CON, INT, SAB, CAR) */}
       {/* Cada una con puntuación grande y modificador               */}
@@ -496,6 +1047,8 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as Array<keyof typeof character.abilities>).map((code) => {
             const ab = getEffectiveAbility(code);
+            const abilityModifier = getAbilityModifier(character, code);
+            const savingThrowModifier = getSavingThrowModifier(character, code);
             const isKey = ab.isKeyAttribute;
             return (
               <div
@@ -522,7 +1075,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     {ab.name.toUpperCase()} ({code})
                   </span>
                   <button
-                    onClick={() => onRollDice(`${ab.name} (Prueba)`, ab.modifier, `Puntuación: ${ab.base}`)}
+                    onClick={() => onRollDice(`${ab.name} (Prueba)`, abilityModifier, `Puntuación: ${ab.base}`, 20, 1, 'normal', undefined, false, 'check', ABILITY_BY_CODE[code])}
                     className="text-gray-400 hover:text-[var(--theme-primary,#fbbf24)] transition-colors p-0.5"
                     title={`Tirar d20 de ${ab.name}`}
                   >
@@ -532,7 +1085,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
                 {/* MODIFICADOR (GRANDE Y DESTACADO) */}
                 <div
-                  onClick={() => onRollDice(`${ab.name} (Prueba)`, ab.modifier, `Base: ${ab.base}`)}
+                  onClick={() => onRollDice(`${ab.name} (Prueba)`, abilityModifier, `Base: ${ab.base}`, 20, 1, 'normal', undefined, false, 'check', ABILITY_BY_CODE[code])}
                   className={`my-1.5 w-16 h-16 rounded-full bg-[#2b2932] flex flex-col items-center justify-center jewel-socket border border-white/10 cursor-pointer transition-transform hover:scale-105 ${
                     isKey ? 'shadow-[0_0_12px_rgba(251,191,36,0.25)]' : ''
                   }`}
@@ -543,7 +1096,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                       isKey ? 'text-[var(--theme-primary,#fbbf24)]' : 'text-white'
                     }`}
                   >
-                    {ab.modifier >= 0 ? `+${ab.modifier}` : ab.modifier}
+                    {abilityModifier >= 0 ? `+${abilityModifier}` : abilityModifier}
                   </span>
                   <span className="text-[9px] text-gray-400 uppercase font-semibold mt-0.5">
                     Mod
@@ -587,13 +1140,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     onClick={() =>
                       onRollDice(
                         `Salvación de ${ab.name}`,
-                        ab.savingThrow,
-                        ab.isProficientSave ? `Competente (+${character.proficiencyBonus})` : 'Normal'
+                        savingThrowModifier,
+                        ab.isProficientSave ? `Competente (+${character.proficiencyBonus})` : 'Normal',
+                        20, 1, 'normal', undefined, false, 'save', ABILITY_BY_CODE[code]
                       )
                     }
                     className="font-mono text-xs font-bold text-gray-200 hover:text-[var(--theme-primary,#fbbf24)]"
                   >
-                    {ab.savingThrow >= 0 ? `+${ab.savingThrow}` : ab.savingThrow}
+                    {savingThrowModifier >= 0 ? `+${savingThrowModifier}` : savingThrowModifier}
                   </button>
                 </div>
               </div>
@@ -620,15 +1174,28 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               <div className="flex items-center gap-1 my-1">
                 <input
                   type="number"
-                  value={character.armorClass}
+                  value={computeAC(character)}
+                  disabled={character.manualArmorClass !== true}
                   onChange={(e) => {
                     const newAc = parseInt(e.target.value, 10) || 10;
-                    onUpdateCharacter((prev) => ({ ...prev, armorClass: newAc }));
+                    onUpdateCharacter((prev) => ({ ...prev, armorClass: newAc, manualArmorClass: true }));
                   }}
-                  className="bg-transparent font-garamond text-3xl font-bold text-white text-center w-16 focus:outline-none focus:bg-white/10 rounded"
-                  title="Clase de Armadura (editable)"
+                  className="w-16 rounded bg-transparent text-center font-garamond text-3xl font-bold text-white focus:bg-white/10 focus:outline-none disabled:text-gray-400"
+                  title={character.manualArmorClass === true ? 'Clase de Armadura manual' : 'CA calculada automáticamente'}
                 />
               </div>
+              <label className="mb-1 flex items-center gap-1.5 text-[10px] text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={character.manualArmorClass === true}
+                  onChange={(event) => onUpdateCharacter((prev) => ({
+                    ...prev,
+                    armorClass: event.target.checked ? computeAC(prev) : prev.armorClass,
+                    manualArmorClass: event.target.checked,
+                  }))}
+                />
+                CA manual
+              </label>
               <input
                 type="text"
                 value={character.acType}
@@ -731,11 +1298,11 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             <div className="bg-[#1c1a24] p-3 rounded-lg border border-white/5 flex items-center justify-between">
               <span className="text-xs text-gray-300 font-medium">Ataque de Conjuro</span>
               <button
-                onClick={() => onRollDice('Ataque de Conjuro', character.spellAttackBonus, 'Bono de ataque mágico')}
+                onClick={() => onRollDice('Ataque de Conjuro', getSpellAttackModifier(character), 'Bono de ataque mágico', 20, 1, 'normal', undefined, false, 'attack')}
                 className="font-mono text-base font-bold text-[var(--theme-primary,#fbbf24)] hover:brightness-125"
                 title="Tirar ataque de conjuro"
               >
-                {character.spellAttackBonus >= 0 ? `+${character.spellAttackBonus}` : character.spellAttackBonus}
+                {getSpellAttackModifier(character) >= 0 ? `+${getSpellAttackModifier(character)}` : getSpellAttackModifier(character)}
               </button>
             </div>
           </div>
@@ -779,43 +1346,83 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 {/* Botones -5 y -1 */}
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleModifyHp(-5)}
+                    onClick={() => handleModifyHp(-5, damageType)}
                     className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-xs border border-white/5 flex items-center justify-center transition-colors"
                     title="Restar 5 PG"
                   >
                     -5
                   </button>
                   <button
-                    onClick={() => handleModifyHp(-1)}
+                    onClick={() => handleModifyHp(-1, damageType)}
                     className="w-8 h-8 rounded-lg bg-[#2b2932] hover:bg-red-500/20 text-red-400 hover:text-red-300 font-bold text-sm border border-white/5 flex items-center justify-center transition-colors"
                     title="Restar 1 PG"
                   >
                     -1
                   </button>
                 </div>
+                <label className="flex items-center gap-1 text-[10px] text-gray-400">
+                  Tipo:
+                  <select
+                    value={damageType}
+                    onChange={(event) => setDamageType(event.target.value)}
+                    aria-label="Tipo de daño aplicado"
+                    className="max-w-28 rounded border border-white/10 bg-[#2b2932] px-1 py-1 text-[10px] text-gray-200"
+                  >
+                    <option value="">Sin tipo</option>
+                    {['Ácido', 'Contundente', 'Frío', 'Fuego', 'Fuerza', 'Necrótico', 'Perforante', 'Psíquico', 'Radiante', 'Relámpago', 'Veneno', 'Trueno', 'Cortante'].map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
 
                 {/* PG Actual editable */}
                 <div className="flex items-baseline gap-1">
                   <input
                     type="number"
                     min="0"
-                    max={character.maxHp}
+                    max={effectiveMaxHp}
+                    disabled={(character.exhaustionLevel ?? 0) >= 6}
                     value={character.currentHp}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10) || 0;
-                      onUpdateCharacter((prev) => ({ ...prev, currentHp: Math.min(prev.maxHp, Math.max(0, val)) }));
+                      const nextHp = Math.min(effectiveMaxHp, Math.max(0, val));
+                      if (nextHp !== character.currentHp && !hpEditUndoCaptured.current) {
+                        onBeforeUndoableAction();
+                        hpEditUndoCaptured.current = true;
+                      }
+                      if (nextHp === 0 && concentration) {
+                        onConcentrationChange(null);
+                        setConcentrationCheck(null);
+                      }
+                      onUpdateCharacter((prev) => ({
+                        ...prev,
+                        currentHp: Math.min(effectiveMaxHitPoints(prev.maxHp, prev.exhaustionLevel ?? 0), Math.max(0, val)),
+                      }));
+                    }}
+                    onFocus={() => { hpEditStartingValue.current = character.currentHp; hpEditUndoCaptured.current = false; }}
+                    onBlur={() => {
+                      const damage = hpEditStartingValue.current - character.currentHp;
+                      if (damage > 0) checkConcentrationAfterDamage(damage, character.currentHp);
+                      hpEditUndoCaptured.current = false;
                     }}
                     className="w-16 bg-transparent font-garamond text-4xl font-bold text-white text-center focus:outline-none focus:bg-white/10 rounded"
-                    title="Puntos de Golpe Actuales (editable)"
+                    title={`Puntos de Golpe Actuales (máximo efectivo: ${effectiveMaxHp})`}
                   />
                   <span className="text-xl text-gray-500">/</span>
                   <input
                     type="number"
                     min="1"
-                    value={character.maxHp}
+                    disabled={(character.exhaustionLevel ?? 0) >= 6}
+                    value={effectiveMaxHp}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10) || 1;
-                      onUpdateCharacter((prev) => ({ ...prev, maxHp: val }));
+                      const effectiveMax = Math.max(1, val);
+                      if (effectiveMax < character.currentHp) onBeforeUndoableAction();
+                      onUpdateCharacter((prev) => ({
+                        ...prev,
+                        maxHp: effectiveMax * ((prev.exhaustionLevel ?? 0) >= 4 ? 2 : 1),
+                        currentHp: Math.min(prev.currentHp, effectiveMax),
+                      }));
                     }}
                     className="w-14 bg-transparent font-garamond text-2xl font-bold text-gray-400 text-center focus:outline-none focus:bg-white/10 rounded"
                     title="Puntos de Golpe Máximos (editable)"
@@ -842,6 +1449,54 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 </div>
               </div>
 
+              {concentrationCheck && concentration && (
+                <div role="status" className="basis-full mb-4 rounded-lg border border-[var(--theme-secondary,#d0bcff)]/30 bg-[#211e28] p-3 text-xs">
+                  <p className="text-gray-200">
+                    Daño recibido: {concentrationCheck.damage} PG. Salvación de Constitución CD {concentrationCheck.dc}.
+                  </p>
+                  {concentrationCheck.total === undefined ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const conSave = character.abilities.CON.savingThrow;
+                        const roll = onRollDice(
+                          'Salvación de Constitución (Concentración)',
+                          conSave,
+                          `CD ${concentrationCheck.dc}`,
+                          20, 1, 'normal', undefined, false, 'save', 'con'
+                        );
+                        setConcentrationCheck((previous) => previous
+                          ? { ...previous, total: roll.total }
+                          : previous);
+                      }}
+                      className="mt-2 rounded bg-[var(--theme-secondary-container,#571bc1)] px-2.5 py-1.5 text-white font-semibold"
+                    >
+                      Tirar salvación de CON
+                    </button>
+                  ) : concentrationCheck.total < concentrationCheck.dc ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-red-300">
+                        Fallida ({concentrationCheck.total}): decide si terminas {concentration.spellName}.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onConcentrationChange(null);
+                          setConcentrationCheck(null);
+                        }}
+                        className="rounded bg-red-500/20 px-2.5 py-1.5 text-red-200 hover:bg-red-500/30"
+                      >
+                        Perder concentración
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-emerald-300">
+                      Salvación superada ({concentrationCheck.total}); mantienes {concentration.spellName}.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* PG Temporales y Dados de Golpe */}
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-center bg-[#1c1a24] px-3 py-1.5 rounded-lg border border-white/5">
@@ -863,11 +1518,16 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   <input
                     type="text"
                     value={character.hitDice}
-                    onChange={(e) =>
-                      onUpdateCharacter((prev) => ({ ...prev, hitDice: e.target.value }))
-                    }
+                    onChange={(e) => onUpdateCharacter((prev) => ({
+                      ...prev,
+                      hitDice: e.target.value,
+                      hitDicePool: updateHitDiceDieSize(e.target.value, prev),
+                    }))}
                     className="w-14 bg-transparent text-center text-sm font-bold text-amber-400 focus:outline-none"
                   />
+                  <span className="text-[10px] text-gray-400">
+                    {getHitDicePool(character).remaining}/{getHitDicePool(character).total}
+                  </span>
                 </div>
               </div>
             </div>
@@ -977,11 +1637,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-            {character.skills.map((s) => (
+            {character.skills.map((s) => {
+              const proficiencyLevel = getSkillProficiencyLevel(s);
+              const proficiencyPresentation = PROFICIENCY_PRESENTATION[proficiencyLevel];
+              return (
               <div
                 key={s.name}
                 className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg border transition-all ${
-                  s.isProficient
+                  proficiencyLevel !== 'none'
                     ? 'bg-[#211e28] border-[var(--theme-primary,#fbbf24)]/30'
                     : 'bg-[#211e28]/40 border-transparent hover:bg-[#211e28]/70'
                 }`}
@@ -990,27 +1653,25 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   <button
                     onClick={() => handleToggleSkillProficiency(s.name)}
-                    className="shrink-0 p-0.5"
-                    title={s.isProficient ? 'Quitar competencia' : 'Marcar competencia'}
+                    className={`shrink-0 p-0.5 ${proficiencyPresentation.className}`}
+                    title={`${proficiencyPresentation.label} · clic para cambiar`}
+                    aria-label={`${s.name}: ${proficiencyPresentation.label}. Cambiar nivel de competencia`}
                   >
-                    <span
-                      className={`w-3.5 h-3.5 rotate-45 rounded-xs flex items-center justify-center transition-all ${
-                        s.isProficient
-                          ? 'bg-[var(--theme-primary,#fbbf24)] shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                          : 'bg-[#2b2932] border border-white/10'
-                      }`}
-                    />
+                    <span className="material-symbols-outlined text-base leading-none">
+                      {proficiencyPresentation.icon}
+                    </span>
                   </button>
                   <button
                     onClick={() =>
                       onRollDice(
                         `Prueba de ${s.name} (${s.attr})`,
-                        s.modifier,
-                        s.isProficient ? `Competente (+${character.proficiencyBonus})` : 'Sin competencia'
+                        getSkillModifier(character, s.name),
+                        `${proficiencyPresentation.label} (+${proficiencyBonusForLevel(proficiencyLevel, character.proficiencyBonus)})`,
+                        20, 1, 'normal', undefined, false, 'check', ABILITY_BY_CODE[s.attr]
                       )
                     }
                     className={`text-xs text-left truncate hover:text-[var(--theme-primary,#fbbf24)] transition-colors ${
-                      s.isProficient ? 'text-white font-bold' : 'text-gray-300'
+                      proficiencyLevel !== 'none' ? 'text-white font-bold' : 'text-gray-300'
                     }`}
                   >
                     {s.name}
@@ -1030,17 +1691,18 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   onClick={() =>
                     onRollDice(
                       `Prueba de ${s.name} (${s.attr})`,
-                      s.modifier,
-                      s.isProficient ? `Competente (+${character.proficiencyBonus})` : 'Sin competencia'
+                      getSkillModifier(character, s.name),
+                      `${proficiencyPresentation.label} (+${proficiencyBonusForLevel(proficiencyLevel, character.proficiencyBonus)})`,
+                      20, 1, 'normal', undefined, false, 'check', ABILITY_BY_CODE[s.attr]
                     )
                   }
                   className="text-xs font-mono font-bold text-[var(--theme-primary,#fbbf24)] hover:brightness-125 px-1.5 py-0.5 rounded hover:bg-white/5"
                   title="Tirar dado"
                 >
-                  {s.modifier >= 0 ? `+${s.modifier}` : s.modifier}
+                  {getSkillModifier(character, s.name) >= 0 ? `+${getSkillModifier(character, s.name)}` : getSkillModifier(character, s.name)}
                 </button>
               </div>
-            ))}
+            );})}
           </div>
 
           {/* Modal / Inline Add Homebrew Skill */}
@@ -1055,7 +1717,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               />
               <select
                 value={newSkill.attr || 'INT'}
-                onChange={(e) => setNewSkill((prev) => ({ ...prev, attr: e.target.value as any }))}
+                onChange={(e) => setNewSkill((prev) => ({ ...prev, attr: e.target.value as AbilityCode }))}
                 className="bg-[#1c1a24] text-xs text-gray-200 px-2 py-1 rounded border border-white/10"
               >
                 {['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'].map((a) => (
@@ -1065,23 +1727,25 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               <button
                 onClick={() => {
                   if (newSkill.name) {
-                    const attrMod = character.abilities[newSkill.attr as keyof typeof character.abilities].modifier;
-                    const finalMod = attrMod + character.proficiencyBonus;
+                    const attribute = newSkill.attr ?? 'INT';
+                    const proficiencyLevel = newSkill.proficiencyLevel ?? 'proficient';
+                    const attrMod = character.abilities[attribute].modifier;
+                    const finalMod = attrMod + proficiencyBonusForLevel(proficiencyLevel, character.proficiencyBonus);
                     onUpdateCharacter((prev) => ({
                       ...prev,
                       skills: [
                         ...prev.skills,
                         {
                           name: newSkill.name!,
-                          attr: newSkill.attr as any,
-                          isProficient: true,
+                          attr: attribute,
+                          proficiencyLevel,
                           modifier: finalMod,
                           isHomebrew: true,
                         },
                       ],
                     }));
                     setShowAddSkill(false);
-                    setNewSkill({ name: '', attr: 'INT', isProficient: true });
+                    setNewSkill({ name: '', attr: 'INT', proficiencyLevel: 'proficient' });
                   }
                 }}
                 className="px-3 py-1 bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs rounded"
@@ -1157,6 +1821,58 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
           </div>
 
+          {(character.classResources ?? []).length > 0 && (
+            <section className="rounded-xl border border-[var(--theme-primary,#fbbf24)]/20 bg-[#1c1a24] p-4" aria-label="Recursos de clase">
+              <h3 className="mb-3 font-garamond text-lg font-bold text-white">Recursos de Clase</h3>
+              <div className="space-y-2">
+                {character.classResources?.map((resource) => (
+                  <div key={resource.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#211e28] px-3 py-2">
+                    <div>
+                      <p className="text-xs font-semibold text-white">{resource.name}</p>
+                      <p className="text-[10px] text-gray-500">{resource.description} · Recarga: {resource.recharge.toLowerCase()}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5" aria-label={`${resource.usesRemaining} de ${resource.usesMax} usos`}>
+                      <button
+                        type="button"
+                        disabled={resource.usesRemaining <= 0}
+                        onClick={() => {
+                          onBeforeUndoableAction();
+                          onUpdateCharacter((prev) => ({
+                            ...prev,
+                            classResources: prev.classResources?.map((item) => item.id === resource.id
+                              ? { ...item, usesRemaining: Math.max(0, item.usesRemaining - 1) }
+                              : item),
+                          }));
+                        }}
+                        aria-label={`Gastar uso de ${resource.name}`}
+                        className="rounded bg-[#2b2932] px-2 py-1 text-xs text-gray-200 disabled:opacity-40"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-10 text-center font-mono text-xs text-[var(--theme-primary,#fbbf24)]">
+                        {resource.usesRemaining}/{resource.usesMax}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={resource.usesRemaining >= resource.usesMax}
+                        onClick={() => onUpdateCharacter((prev) => ({
+                          ...prev,
+                          classResources: prev.classResources?.map((item) => item.id === resource.id
+                            ? { ...item, usesRemaining: Math.min(item.usesMax, item.usesRemaining + 1) }
+                            : item),
+                        }))}
+                        aria-label={`Recuperar uso de ${resource.name}`}
+                        className="rounded bg-[#2b2932] px-2 py-1 text-xs text-gray-200 disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Ataques y Armas (Homebrew Ready) */}
           <div className="bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-3">
@@ -1169,7 +1885,11 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 </h3>
               </div>
               <button
-                onClick={() => setShowAddWeapon(true)}
+                onClick={() => {
+                  setEditingWeaponId(null);
+                  setNewWeapon({ name: '', attackBonus: 5, damage: '1d8', damageType: 'Cortante', reach: '5 ft', properties: '' });
+                  setShowAddWeapon(true);
+                }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#211e28] hover:bg-[#2b2932] text-xs text-[var(--theme-primary,#fbbf24)] border border-white/5 font-semibold transition-colors"
                 title="Añadir arma o ataque homebrew"
               >
@@ -1216,7 +1936,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     onClick={() => {
                       if (newWeapon.name) {
                         const item: WeaponItem = {
-                          id: `wpn-${Date.now()}`,
+                          id: editingWeaponId ?? `wpn-${Date.now()}`,
                           name: newWeapon.name,
                           attackBonus: newWeapon.attackBonus || 5,
                           damage: newWeapon.damage || '1d8',
@@ -1224,21 +1944,26 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                           reach: newWeapon.reach || '5 ft',
                           properties: newWeapon.properties || 'Versátil',
                           isEquipped: true,
-                          isHomebrew: true,
+                          isHomebrew: editingWeaponId
+                            ? character.weapons?.find((weapon) => weapon.id === editingWeaponId)?.isHomebrew
+                            : true,
                         };
                         onUpdateCharacter((prev) => ({
                           ...prev,
-                          weapons: [...(prev.weapons || []), item],
+                          weapons: editingWeaponId
+                            ? (prev.weapons || []).map((weapon) => weapon.id === editingWeaponId ? item : weapon)
+                            : [...(prev.weapons || []), item],
                         }));
+                        setEditingWeaponId(null);
                         setShowAddWeapon(false);
                       }
                     }}
                     className="px-3 py-1 bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs rounded"
                   >
-                    Guardar Arma
+                    {editingWeaponId ? 'Guardar cambios' : 'Guardar Arma'}
                   </button>
                   <button
-                    onClick={() => setShowAddWeapon(false)}
+                    onClick={() => { setShowAddWeapon(false); setEditingWeaponId(null); }}
                     className="px-2 py-1 bg-white/10 text-gray-300 text-xs rounded"
                   >
                     Cancelar
@@ -1288,13 +2013,15 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() =>
-                        onRollDice(
+                      onClick={() => {
+                        const outcome = onRollDice(
                           `Ataque con ${wpn.name}`,
                           wpn.attackBonus,
-                          `Daño: ${wpn.damage} (${wpn.damageType})`
-                        )
-                      }
+                          `Daño: ${wpn.damage} (${wpn.damageType})`,
+                          20, 1, 'normal', undefined, false, 'attack'
+                        );
+                        setLastCriticalAttack(outcome.natural === 20 ? `weapon:${wpn.id}` : null);
+                      }}
                       className="px-2 py-1 rounded bg-[#2b2932] hover:bg-[var(--theme-primary,#fbbf24)] text-gray-200 hover:text-[#261a00] font-mono text-xs font-bold transition-colors"
                       title="Tirar ataque con d20"
                     >
@@ -1302,29 +2029,63 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     </button>
                     <button
                       onClick={() => {
-                        const damageMatch = wpn.damage.match(/(\d+)d(\d+)(?:\s*\+\s*(-?\d+))?/i);
+                        const attackId = `weapon:${wpn.id}`;
+                        const isCritical = criticalDamage[attackId] ?? lastCriticalAttack === attackId;
+                        const formula = isCritical ? doubleDice(wpn.damage) : wpn.damage;
+                        if (!parseDiceExpression(formula)) return;
                         onRollDice(
                           `Daño de ${wpn.name}`,
-                          damageMatch?.[3] ? Number(damageMatch[3]) : 0,
+                          0,
                           wpn.damageType,
-                          damageMatch?.[2] ? Number(damageMatch[2]) : 20,
-                          damageMatch?.[1] ? Number(damageMatch[1]) : 1
+                          20,
+                          1,
+                          'normal',
+                          formula,
+                          isCritical,
                         );
                       }}
                       className="px-2 py-1 rounded bg-[#2b2932] hover:bg-emerald-500/30 text-emerald-300 font-mono text-xs font-bold"
                       title="Tirar daño"
                     >
-                      Daño
+                      {criticalDamage[`weapon:${wpn.id}`] || lastCriticalAttack === `weapon:${wpn.id}` ? '¡CRÍTICO! Daño' : 'Daño'}
                     </button>
+                    <label className="flex items-center gap-1 text-[10px] text-amber-300">
+                      <input
+                        type="checkbox"
+                        checked={criticalDamage[`weapon:${wpn.id}`] ?? lastCriticalAttack === `weapon:${wpn.id}`}
+                        onChange={(event) => setCriticalDamage((previous) => ({
+                          ...previous,
+                          [`weapon:${wpn.id}`]: event.target.checked,
+                        }))}
+                      />
+                      Crítico
+                    </label>
                     {character.weapons?.some((item) => item.id === wpn.id) && (
-                      <button
-                        onClick={() => onUpdateCharacter((prev) => ({ ...prev, weapons: (prev.weapons || []).filter((item) => item.id !== wpn.id) }))}
-                        className="p-1 text-gray-500 hover:text-red-400"
-                        title="Eliminar arma"
-                        aria-label={`Eliminar ${wpn.name}`}
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingWeaponId(wpn.id);
+                            setNewWeapon({ ...wpn });
+                            setShowAddWeapon(true);
+                          }}
+                          className="p-1 text-gray-400 hover:text-white"
+                          title={`Editar ${wpn.name}`}
+                          aria-label={`Editar ${wpn.name}`}
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            onBeforeUndoableAction();
+                            onUpdateCharacter((prev) => ({ ...prev, weapons: (prev.weapons || []).filter((item) => item.id !== wpn.id) }));
+                          }}
+                          className="p-1 text-gray-500 hover:text-red-400"
+                          title="Eliminar arma"
+                          aria-label={`Eliminar ${wpn.name}`}
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </>
                     )}
                     <span className="text-xs font-mono font-semibold text-emerald-400">
                       {wpn.damage}
@@ -1352,14 +2113,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowAddFeat(true)}
+              onClick={() => { setEditingFeatId(null); setNewFeat({ name: '', prerequisite: '', description: '', abilityBonuses: { INT: 0 } }); setShowAddFeat(true); }}
               className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#211e28] hover:bg-[#2b2932] text-xs text-[var(--theme-primary,#fbbf24)] border border-white/5 font-semibold transition-colors"
             >
               <span className="material-symbols-outlined text-xs">add</span>
               <span>+ Dote / Feat</span>
             </button>
             <button
-              onClick={() => setShowAddSpell(true)}
+              onClick={() => { setEditingSpellId(null); setNewSpell({ name: '', level: 1, school: 'Evocación', castingTime: '1 Acción', range: '60 ft', components: 'V, S', duration: 'Instantáneo', concentration: false, attackOrDc: 'CD 15 DES', damageOrHeal: '3d8', description: '' }); setShowAddSpell(true); }}
               className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#211e28] hover:bg-[#2b2932] text-xs text-[var(--theme-secondary,#d0bcff)] border border-white/5 font-semibold transition-colors"
             >
               <span className="material-symbols-outlined text-xs">add</span>
@@ -1410,40 +2171,47 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 onClick={() => {
                   if (newFeat.name) {
                     const featItem: FeatDefinition = {
-                      id: `feat-${Date.now()}`,
+                      id: editingFeatId ?? `feat-${Date.now()}`,
                       name: newFeat.name,
                       prerequisite: newFeat.prerequisite,
                       description: newFeat.description || '',
                       abilityBonuses: newFeat.abilityBonuses,
-                      isHomebrew: true,
+                      isHomebrew: editingFeatId
+                        ? character.feats?.find((feat) => feat.id === editingFeatId)?.isHomebrew
+                        : true,
                     };
                     onUpdateCharacter((prev) => {
-                      const nextFeats = [...(prev.feats || []), featItem];
-                      return recalculateDerivedStats({
-                        ...prev,
-                      feats: [...(prev.feats || []), featItem],
-                      traits: [
-                        ...prev.traits,
-                        {
+                      const oldFeat = (prev.feats || []).find((feat) => feat.id === editingFeatId);
+                      const nextFeats = editingFeatId
+                        ? (prev.feats || []).map((feat) => feat.id === editingFeatId ? featItem : feat)
+                        : [...(prev.feats || []), featItem];
+                      const nextTraits = editingFeatId
+                        ? prev.traits.map((trait) => trait.isHomebrew && trait.title === oldFeat?.name
+                          ? { ...trait, title: featItem.name, description: featItem.description }
+                          : trait)
+                        : [...prev.traits, {
                           title: featItem.name,
                           badge: 'DOTE',
-                          badgeType: 'accent',
+                          badgeType: 'accent' as const,
                           description: featItem.description,
                           isHomebrew: true,
-                        },
-                      ],
+                        }];
+                      return recalculateDerivedStats({
+                        ...prev,
+                        traits: nextTraits,
                       }, nextFeats);
                     });
                     setShowAddFeat(false);
+                    setEditingFeatId(null);
                     setNewFeat((prev) => ({ ...prev, name: '', description: '', abilityBonuses: { INT: 0 } }));
                   }
                 }}
                 className="px-3 py-1 bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs rounded"
               >
-                Guardar Dote
+                {editingFeatId ? 'Guardar cambios' : 'Guardar Dote'}
               </button>
               <button
-                onClick={() => setShowAddFeat(false)}
+                onClick={() => { setShowAddFeat(false); setEditingFeatId(null); }}
                 className="px-2 py-1 bg-white/10 text-gray-300 text-xs rounded"
               >
                 Cancelar
@@ -1465,7 +2233,9 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               />
               <input
                 type="number"
-                value={newSpell.level || 1}
+                min="0"
+                max="9"
+                value={newSpell.level ?? 1}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, level: parseInt(e.target.value, 10) || 0 }))}
                 placeholder="Nivel de conjuro..."
                 className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
@@ -1492,12 +2262,39 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               rows={2}
               className="bg-[#1c1a24] text-xs text-gray-200 px-2 py-1 rounded border border-white/10"
             />
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              <input
+                type="checkbox"
+                checked={!!newSpell.concentration}
+                onChange={(event) => setNewSpell((prev) => ({ ...prev, concentration: event.target.checked }))}
+                className="accent-[var(--theme-primary,#fbbf24)]"
+              />
+              Requiere concentración
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              Dados extra por nivel de espacio (opcional)
+              <input
+                type="text"
+                value={newSpell.upcast?.dicePerLevel ?? ''}
+                onChange={(event) => setNewSpell((prev) => ({
+                  ...prev,
+                  upcast: event.target.value.trim()
+                    ? { dicePerLevel: event.target.value }
+                    : undefined,
+                }))}
+                placeholder="1d6"
+                aria-label="Dados de daño extra por nivel de espacio"
+                className="w-24 rounded border border-white/10 bg-[#1c1a24] px-2 py-1 text-xs text-white"
+              />
+            </label>
+            {invalidUpcastDraft && <p role="alert" className="text-[10px] text-red-300">Usa solo una expresión de dados positiva, por ejemplo 1d6.</p>}
             <div className="flex justify-end gap-2">
               <button
+                disabled={invalidUpcastDraft || !newSpell.name?.trim()}
                 onClick={() => {
                   if (newSpell.name) {
                     const sp: SpellDefinition = {
-                      id: `spl-${Date.now()}`,
+                      id: editingSpellId ?? `spl-${Date.now()}`,
                       name: newSpell.name,
                       level: newSpell.level ?? 1,
                       school: newSpell.school || 'Evocación',
@@ -1506,24 +2303,32 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                       components: newSpell.components || 'V, S',
                       duration: newSpell.duration || 'Instantáneo',
                       concentration: !!newSpell.concentration,
+                      upcast: newSpell.upcast?.dicePerLevel.trim()
+                        ? { dicePerLevel: newSpell.upcast.dicePerLevel.trim() }
+                        : undefined,
                       attackOrDc: newSpell.attackOrDc || 'CD 15 DES',
                       damageOrHeal: newSpell.damageOrHeal || '3d8',
                       description: newSpell.description || '',
-                      isHomebrew: true,
+                      isHomebrew: editingSpellId
+                        ? character.spells?.find((spell) => spell.id === editingSpellId)?.isHomebrew
+                        : true,
                     };
                     onUpdateCharacter((prev) => ({
                       ...prev,
-                      spells: [...(prev.spells || []), sp],
+                      spells: editingSpellId
+                        ? (prev.spells || []).map((spell) => spell.id === editingSpellId ? sp : spell)
+                        : [...(prev.spells || []), sp],
                     }));
                     setShowAddSpell(false);
+                    setEditingSpellId(null);
                   }
                 }}
                 className="px-3 py-1 bg-[var(--theme-secondary,#d0bcff)] text-black font-bold text-xs rounded"
               >
-                Guardar Conjuro
+                {editingSpellId ? 'Guardar cambios' : 'Guardar Conjuro'}
               </button>
               <button
-                onClick={() => setShowAddSpell(false)}
+                onClick={() => { setShowAddSpell(false); setEditingSpellId(null); }}
                 className="px-2 py-1 bg-white/10 text-gray-300 text-xs rounded"
               >
                 Cancelar
@@ -1574,20 +2379,37 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                           <span key={code} className="text-[10px] text-emerald-300 mt-1">{code} {bonus >= 0 ? `+${bonus}` : bonus}</span>
                         ))}
                   </div>
+                  <div className="flex shrink-0 items-start gap-1">
                   <button
-                    onClick={() => onUpdateCharacter((prev) => {
+                    onClick={() => {
+                      setEditingFeatId(feat.id);
+                      setNewFeat({ ...feat });
+                      setShowAddFeat(true);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white"
+                    title={`Editar ${feat.name}`}
+                    aria-label={`Editar ${feat.name}`}
+                  >
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onBeforeUndoableAction();
+                      onUpdateCharacter((prev) => {
                       const nextFeats = (prev.feats || []).filter((item) => item.id !== feat.id);
                       return recalculateDerivedStats({
                         ...prev,
                         traits: prev.traits.filter((trait) => !(trait.isHomebrew && trait.title === feat.name)),
                       }, nextFeats);
-                    })}
+                    });
+                    }}
                     className="p-1 text-gray-500 hover:text-red-400 shrink-0"
                     title="Eliminar dote"
                     aria-label={`Eliminar ${feat.name}`}
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1608,7 +2430,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   aria-label="Filtrar conjuros por nivel"
                 >
                   <option value="all">Todos</option>
-                  {[0, 1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{level === 0 ? 'Trucos' : `Nivel ${level}`}</option>)}
+                  {Array.from({ length: 10 }, (_, level) => <option key={level} value={level}>{level === 0 ? 'Trucos' : `Nivel ${level}`}</option>)}
                 </select>
                 <span className="text-[10px] text-gray-500">{character.spells?.filter((spell) => spellFilter === 'all' || spell.level === spellFilter).length} conocidos</span>
               </div>
@@ -1616,7 +2438,8 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {character.spells?.filter((spell) => spellFilter === 'all' || spell.level === spellFilter).map((spell) => {
                 const attackMatch = spell.attackOrDc.match(/(?:\+|CD\s*)(-?\d+)/i);
-                const attackModifier = attackMatch ? Number(attackMatch[1]) : character.spellAttackBonus;
+                const attackModifier = attackMatch ? Number(attackMatch[1]) : getSpellAttackModifier(character);
+                const canCriticallyHit = /ataque|\+/i.test(spell.attackOrDc);
                 const damageMatch = spell.damageOrHeal.match(/(\d+)d(\d+)(?:\s*\+\s*(-?\d+))?/i);
                 return (
                   <div key={spell.id} className="bg-[#211e28] p-3 rounded-lg border border-white/5">
@@ -1625,31 +2448,75 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                         <span className="font-semibold text-xs text-white">{spell.name}</span>
                         <span className="ml-2 text-[10px] text-[var(--theme-secondary,#d0bcff)]">{spell.level === 0 ? 'Truco' : `Nivel ${spell.level}`}</span>
                       </div>
-                      <button
-                        onClick={() => onUpdateCharacter((prev) => ({ ...prev, spells: (prev.spells || []).filter((item) => item.id !== spell.id) }))}
-                        className="p-1 text-gray-500 hover:text-red-400"
-                        title="Eliminar conjuro"
-                        aria-label={`Eliminar ${spell.name}`}
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingSpellId(spell.id);
+                            setNewSpell({ ...spell });
+                            setShowAddSpell(true);
+                          }}
+                          className="p-1 text-gray-400 hover:text-white"
+                          title={`Editar ${spell.name}`}
+                          aria-label={`Editar ${spell.name}`}
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            onBeforeUndoableAction();
+                            onUpdateCharacter((prev) => ({ ...prev, spells: (prev.spells || []).filter((item) => item.id !== spell.id) }));
+                          }}
+                          className="p-1 text-gray-500 hover:text-red-400"
+                          title="Eliminar conjuro"
+                          aria-label={`Eliminar ${spell.name}`}
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-1">{spell.school} • {spell.range} • {spell.damageOrHeal}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {spell.school} • {spell.range} • {spell.damageOrHeal}
+                      {spell.upcast ? ` • +${spell.upcast.dicePerLevel}/nivel de espacio` : ''}
+                    </p>
                     <p className="text-xs text-gray-300 mt-1">{spell.description}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <button
-                        onClick={() => onRollDice(`Ataque: ${spell.name}`, attackModifier, spell.attackOrDc)}
+                        onClick={() => {
+                          const outcome = onRollDice(`Ataque: ${spell.name}`, attackModifier, spell.attackOrDc, 20, 1, 'normal', undefined, false, 'attack');
+                          setLastCriticalAttack(outcome.natural === 20 ? `spell:${spell.id}` : null);
+                        }}
                         className="px-2 py-1 rounded bg-[#2b2932] hover:bg-[var(--theme-secondary-container,#571bc1)] text-xs text-white"
                       >
                         Tirar ataque
                       </button>
                       {damageMatch && (
-                        <button
-                          onClick={() => onRollDice(`Daño: ${spell.name}`, damageMatch[3] ? Number(damageMatch[3]) : 0, spell.damageOrHeal, Number(damageMatch[2]), Number(damageMatch[1]))}
-                          className="px-2 py-1 rounded bg-[#2b2932] hover:bg-emerald-500/30 text-xs text-emerald-300"
-                        >
-                          Tirar daño
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              const attackId = `spell:${spell.id}`;
+                              const isCritical = criticalDamage[attackId] ?? lastCriticalAttack === attackId;
+                              const formula = isCritical ? doubleDice(spell.damageOrHeal) : spell.damageOrHeal;
+                              if (!parseDiceExpression(formula)) return;
+                              onRollDice(`Daño: ${spell.name}`, 0, spell.damageOrHeal, 20, 1, 'normal', formula, isCritical);
+                            }}
+                            className="px-2 py-1 rounded bg-[#2b2932] hover:bg-emerald-500/30 text-xs text-emerald-300"
+                          >
+                            {criticalDamage[`spell:${spell.id}`] || lastCriticalAttack === `spell:${spell.id}` ? '¡CRÍTICO! Daño' : 'Tirar daño'}
+                          </button>
+                          {canCriticallyHit && (
+                            <label className="flex items-center gap-1 text-[10px] text-amber-300">
+                              <input
+                                type="checkbox"
+                                checked={criticalDamage[`spell:${spell.id}`] ?? lastCriticalAttack === `spell:${spell.id}`}
+                                onChange={(event) => setCriticalDamage((previous) => ({
+                                  ...previous,
+                                  [`spell:${spell.id}`]: event.target.checked,
+                                }))}
+                              />
+                              Crítico
+                            </label>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1659,6 +2526,16 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           </div>
         )}
       </div>
+      {levelUpTarget !== null && (
+        <LevelUpDialog
+          currentLevel={character.level}
+          targetLevel={levelUpTarget}
+          hitDie={getHitDicePool(character).dieSize}
+          constitutionModifier={character.abilities.CON.modifier}
+          onCancel={() => setLevelUpTarget(null)}
+          onConfirm={handleWizardLevelUp}
+        />
+      )}
     </div>
   );
 };

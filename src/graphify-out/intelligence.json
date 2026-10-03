@@ -1,0 +1,36 @@
+{
+  "hotspots": [
+    {
+      "label": "Header()",
+      "risk": 0.464,
+      "type": "FUNCTION"
+    },
+    {
+      "label": "buildCharacterSheet()",
+      "risk": 0.375,
+      "type": "FUNCTION"
+    },
+    {
+      "label": "ClassResonanceSelector()",
+      "risk": 0.375,
+      "type": "FUNCTION"
+    },
+    {
+      "label": "CombatTurnView",
+      "risk": 0.375,
+      "type": "FUNCTION"
+    },
+    {
+      "label": "CLASS_THEMES",
+      "risk": 0.21,
+      "type": "FUNCTION"
+    }
+  ],
+  "blast_radius": {
+    "showBanner()": 6,
+    "getAudioContext()": 6,
+    "buildCharacterSheet()": 4,
+    "playHealSound()": 4,
+    "handleShortRest()": 3
+  }
+}

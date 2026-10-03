@@ -1,24 +1,32 @@
 import React, { useState } from 'react';
-import { TacticalCard, CardCategory, ActionType } from '../types';
+import { TacticalCard, CardCategory, ActionType, AbilityCode, CharacterSheet } from '../types';
 import { STANDARD_5E_ACTIONS } from '../data/defaultData';
+import { getTacticalCardDamageRoll, parseDiceFormula } from '../utils/characterMechanics';
 
 interface GrimoireCardsViewProps {
+  character: CharacterSheet;
   cards: TacticalCard[];
   onAddCard: (card: TacticalCard) => void;
   onDeleteCard: (cardId: string) => void;
-  onRollDice: (label: string, modifier: number, subtext?: string) => void;
+  onUseCard: (cardId: string) => boolean;
+  onUndoCardUse: (cardId: string) => void;
+  onRollDice: (label: string, modifier: number, subtext?: string, sides?: number, count?: number) => void;
 }
 
 export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
+  character,
   cards,
   onAddCard,
   onDeleteCard,
+  onUseCard,
+  onUndoCardUse,
   onRollDice,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CardCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isHomebrewModalOpen, setIsHomebrewModalOpen] = useState(false);
   const [expandedStandardActions, setExpandedStandardActions] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
 
   // New card form state
   const [newTitle, setNewTitle] = useState('');
@@ -29,7 +37,13 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
   const [newBonus, setNewBonus] = useState('+5');
   const [newDamage, setNewDamage] = useState('1d8 + 3');
   const [newDesc, setNewDesc] = useState('');
-  const [newRollFormula, setNewRollFormula] = useState('1d20+5');
+  const [newDamageFormula, setNewDamageFormula] = useState('');
+  const [newResourceMax, setNewResourceMax] = useState(0);
+  const [newConsumesResource, setNewConsumesResource] = useState(false);
+  const [newResourceDesc, setNewResourceDesc] = useState('A voluntad');
+  const [newRecharge, setNewRecharge] = useState('Descanso Largo');
+  const [newRollAbility, setNewRollAbility] = useState<AbilityCode | ''>('');
+  const [newRollProficient, setNewRollProficient] = useState(false);
 
   // Filtered cards
   const filteredCards = cards.filter((c) => {
@@ -45,24 +59,33 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    const existingCard = editingCardId ? cards.find((card) => card.id === editingCardId) : undefined;
     const created: TacticalCard = {
-      id: `custom-${Date.now()}`,
-      title: newTitle,
+      ...existingCard,
+      id: editingCardId ?? `custom-${Date.now()}`,
+      title: newTitle.trim(),
       category: newCategory,
       typeBadge: newTypeBadge,
       actionType: newActionType,
       reach: newReach,
       hitBonusOrDc: newBonus,
-      targetOrArea: '1 Criatura / Área',
+      targetOrArea: existingCard?.targetOrArea ?? '1 Criatura / Área',
       primaryDamageOrEffect: newDamage,
       description: newDesc || 'Efecto personalizado creado por el escriba.',
-      imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-      rollFormula: newRollFormula,
-      resourceDesc: 'Uso personal',
+      imageUrl: existingCard?.imageUrl ?? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+      damageFormula: newDamageFormula || undefined,
+      rollAbility: newRollAbility || undefined,
+      rollProficient: newRollProficient,
+      resourceDesc: newResourceDesc || undefined,
+      resourceMax: newResourceMax > 0 ? newResourceMax : undefined,
+      resourceUsed: existingCard?.resourceUsed ?? 0,
+      consumesResource: newConsumesResource,
+      recharge: newResourceMax > 0 ? newRecharge : undefined,
     };
 
     onAddCard(created);
     setIsHomebrewModalOpen(false);
+    setEditingCardId(null);
     // Reset form
     setNewTitle('');
     setNewDesc('');
@@ -95,7 +118,25 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
         </div>
 
         <button
-          onClick={() => setIsHomebrewModalOpen(true)}
+          onClick={() => {
+            setEditingCardId(null);
+            setNewTitle('');
+            setNewCategory('attack');
+            setNewTypeBadge('Arma / Dote Especial');
+            setNewActionType('Acción');
+            setNewReach('5 ft (C/C)');
+            setNewBonus('+5');
+            setNewDamage('1d8 + 3');
+            setNewDesc('');
+            setNewDamageFormula('');
+            setNewResourceMax(0);
+            setNewConsumesResource(false);
+            setNewResourceDesc('A voluntad');
+            setNewRecharge('Descanso Largo');
+            setNewRollAbility('');
+            setNewRollProficient(false);
+            setIsHomebrewModalOpen(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs hover:brightness-110 shadow-md transition-all self-start md:self-auto cursor-pointer active:scale-95"
         >
           <span className="material-symbols-outlined text-base">add_circle</span>
@@ -310,9 +351,9 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 {card.resourceDesc && (
                   <div className="text-[11px] text-gray-400 font-mono pt-2 border-t border-white/5 flex items-center justify-between">
                     <span>{card.resourceDesc}</span>
-                    {card.resourceMax && (
+                    {(card.resourceMax ?? 0) > 0 && (
                       <div className="flex items-center gap-1">
-                        {Array.from({ length: card.resourceMax }).map((_, rIdx) => {
+                        {Array.from({ length: card.resourceMax ?? 0 }).map((_, rIdx) => {
                           const isUsed = rIdx < (card.resourceUsed || 0);
                           return (
                             <span
@@ -329,6 +370,15 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     )}
                   </div>
                 )}
+                {card.consumesResource && (card.resourceMax ?? 0) > 0 && (card.resourceUsed ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onUndoCardUse(card.id)}
+                    className="self-end text-[10px] text-amber-300 hover:text-amber-200"
+                  >
+                    Deshacer uso
+                  </button>
+                )}
 
                 {/* Actions: Roll & Delete */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/5 gap-2">
@@ -341,20 +391,51 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     <span className="material-symbols-outlined text-xs">delete</span>
                     <span>Borrar</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCardId(card.id);
+                      setNewTitle(card.title);
+                      setNewCategory(card.category);
+                      setNewTypeBadge(card.typeBadge);
+                      setNewActionType(card.actionType);
+                      setNewReach(card.reach);
+                      setNewBonus(card.hitBonusOrDc);
+                      setNewDamage(card.primaryDamageOrEffect);
+                      setNewDesc(card.description);
+                      setNewDamageFormula(card.damageFormula ?? '');
+                      setNewResourceMax(card.resourceMax ?? 0);
+                      setNewConsumesResource(!!card.consumesResource);
+                      setNewResourceDesc(card.resourceDesc ?? '');
+                      setNewRecharge(card.recharge ?? 'Descanso Largo');
+                      setNewRollAbility(card.rollAbility ?? '');
+                      setNewRollProficient(!!card.rollProficient);
+                      setIsHomebrewModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 p-1 text-xs text-gray-400 hover:text-white"
+                    title={`Editar tarjeta ${card.title}`}
+                  >
+                    <span className="material-symbols-outlined text-xs">edit</span>
+                    <span>Editar</span>
+                  </button>
 
                   <button
                     onClick={() => {
-                      const mod = parseInt(card.hitBonusOrDc.replace('+', ''), 10) || 0;
+                      if (!onUseCard(card.id)) return;
+                      const roll = getTacticalCardDamageRoll(card, character);
+                      if (!roll) return;
                       onRollDice(
-                        card.title,
-                        mod,
-                        `Efecto: ${card.primaryDamageOrEffect}`
+                        `Daño: ${card.title}`,
+                        roll.modifier,
+                        `Efecto: ${card.primaryDamageOrEffect}`,
+                        roll.sides,
+                        roll.count
                       );
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-secondary-container,#571bc1)] hover:bg-[var(--theme-secondary,#d0bcff)] text-white hover:text-black font-semibold text-xs transition-all shadow-sm ml-auto"
                   >
                     <span className="material-symbols-outlined text-sm">casino</span>
-                    <span>Tirar / Desplegar</span>
+                    <span>Tirar daño / Desplegar</span>
                   </button>
                 </div>
               </div>
@@ -373,11 +454,11 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   auto_fix_high
                 </span>
                 <h3 className="font-garamond text-xl font-bold text-white">
-                  Crear Tarjeta Táctica Homebrew
+                  {editingCardId ? 'Editar Tarjeta Táctica' : 'Crear Tarjeta Táctica Homebrew'}
                 </h3>
               </div>
               <button
-                onClick={() => setIsHomebrewModalOpen(false)}
+                onClick={() => { setIsHomebrewModalOpen(false); setEditingCardId(null); }}
                 className="p-1 rounded text-gray-400 hover:text-white"
               >
                 <span className="material-symbols-outlined">close</span>
@@ -414,6 +495,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     <option value="skill">Habilidad</option>
                     <option value="item">Objeto</option>
                     <option value="reaction">Reacción</option>
+                    <option value="standard">Estándar 5e</option>
                   </select>
                 </div>
 
@@ -488,6 +570,90 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="block text-xs font-runic text-gray-400 uppercase mb-1">Fórmula de daño (opcional)</label>
+                  <input
+                    type="text"
+                    value={newDamageFormula}
+                    onChange={(e) => setNewDamageFormula(e.target.value)}
+                    placeholder="1d8+3 (si difiere del efecto)"
+                    pattern="\s*\d*d\d+(\s*[+-]\s*\d+)?\s*"
+                    title="Usa una fórmula de daño como 1d8+3"
+                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-runic text-gray-400 uppercase mb-1">Atributo para la tirada</label>
+                  <select
+                    value={newRollAbility}
+                    onChange={(e) => setNewRollAbility(e.target.value as AbilityCode | '')}
+                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  >
+                    <option value="">Usar modificador de la fórmula</option>
+                    <option value="FUE">Fuerza</option>
+                    <option value="DES">Destreza</option>
+                    <option value="CON">Constitución</option>
+                    <option value="INT">Inteligencia</option>
+                    <option value="SAB">Sabiduría</option>
+                    <option value="CAR">Carisma</option>
+                  </select>
+                  <label className="mt-1 flex items-center gap-2 text-[11px] text-gray-300">
+                    <input type="checkbox" checked={newRollProficient} onChange={(e) => setNewRollProficient(e.target.checked)} />
+                    Sumar competencia
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-runic text-gray-400 uppercase mb-1">Usos máximos (0 = ilimitado)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={newResourceMax}
+                    onChange={(e) => setNewResourceMax(Math.max(0, Math.min(100, Math.trunc(Number(e.target.value) || 0))))}
+                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-runic text-gray-400 uppercase mb-1">Descripción de usos</label>
+                  <input
+                    type="text"
+                    value={newResourceDesc}
+                    onChange={(e) => setNewResourceDesc(e.target.value)}
+                    placeholder="3 usos por descanso largo"
+                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {newResourceMax > 0 && (
+                <div>
+                  <label className="block text-xs font-runic text-gray-400 uppercase mb-1">Recarga</label>
+                  <select
+                    value={newRecharge}
+                    onChange={(e) => setNewRecharge(e.target.value)}
+                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  >
+                    <option value="Descanso Corto">Descanso corto</option>
+                    <option value="Descanso Largo">Descanso largo</option>
+                    <option value="Ninguna">No se recarga automáticamente</option>
+                  </select>
+                </div>
+              )}
+              <label className="flex items-center gap-2 text-xs text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={newConsumesResource}
+                  onChange={(event) => setNewConsumesResource(event.target.checked)}
+                  className="accent-[var(--theme-primary,#fbbf24)]"
+                />
+                Consumir un uso al usar
+              </label>
+
               <div>
                 <label className="block text-xs font-runic text-gray-400 uppercase mb-1">
                   Descripción Arcana
@@ -504,7 +670,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
               <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
                 <button
                   type="button"
-                  onClick={() => setIsHomebrewModalOpen(false)}
+                  onClick={() => { setIsHomebrewModalOpen(false); setEditingCardId(null); }}
                   className="px-4 py-2 rounded-lg bg-[#211e28] text-gray-300 text-xs hover:bg-[#2b2932]"
                 >
                   Cancelar
@@ -513,7 +679,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs hover:brightness-110 shadow-md"
                 >
-                  Engarzar al Grimorio
+                  {editingCardId ? 'Guardar cambios' : 'Engarzar al Grimorio'}
                 </button>
               </div>
             </form>

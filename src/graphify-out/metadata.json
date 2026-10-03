@@ -1,0 +1,49 @@
+{
+  "projectName": "src",
+  "communityLabels": {
+    "0": "Player Character",
+    "1": "Community 1",
+    "2": "Community 2",
+    "3": "Community 3",
+    "4": "Community 4",
+    "5": "Community 5",
+    "6": "Community 6",
+    "7": "Community 7",
+    "8": "Community 8",
+    "9": "Community 9",
+    "10": "Community 10",
+    "11": "Community 11",
+    "12": "Community 12",
+    "13": "unknown",
+    "14": "unknown"
+  },
+  "communitySummaries": {
+    "0": "It handles the core attributes, skills, equipment, and progression data for a tabletop role-playing game character.",
+    "1": "",
+    "2": "",
+    "3": "",
+    "4": "",
+    "5": "",
+    "6": "",
+    "7": "",
+    "8": "",
+    "9": "",
+    "10": "",
+    "11": "",
+    "12": "",
+    "13": "Unable to determine domain due to missing code entities.",
+    "14": "Unable to determine domain due to missing code entities."
+  },
+  "communityLinks": {
+    "2": {
+      "5": 1
+    },
+    "5": {
+      "2": 2
+    },
+    "0": {
+      "9": 4
+    },
+    "9": {}
+  }
+}
