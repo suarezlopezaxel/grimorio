@@ -129,7 +129,9 @@
 
 /* Animaciones: notas/hojas/energía (activación por hover o por clase add .fx-on) */
 @media (prefers-reduced-motion: reduce) {
-  .fx-notes, .fx-leaves, .fx-pulse;
+  .fx-notes, .fx-leaves, .fx-pulse {
+    animation: none !important;
+  }
 }
 
 /* Bardo: notas al hover */

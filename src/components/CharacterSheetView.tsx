@@ -67,14 +67,10 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   onLongRest,
   onBeforeUndoableAction,
   onNotify,
-  theme,
 }) => {
   const classKey = character.classKey ?? 'mago';
 
   // Theme is optional; prefer class-based styling.
-  const themeResolved: ClassTheme | undefined = theme;
-
-  // Theme is optional; we still allow class-based styling via class names.
   const themeResolved: ClassTheme | undefined = theme;
   // Modal / Quick addition states for Homebrew
   const [showAddWeapon, setShowAddWeapon] = useState(false);
