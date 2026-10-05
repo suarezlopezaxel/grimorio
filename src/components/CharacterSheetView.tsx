@@ -56,6 +56,8 @@ interface CharacterSheetViewProps {
   onTriggerBurst?: () => void;
 }
 
+// NOTE (integrated from grimorio-_-arcanum-v5.2 example): keep handlers/lógica from this project, only skin/layout tweaks.
+// Original example file: c:\Users\axels\Downloads\grimorio-_-arcanum-v5.2\src\components\views\CharacterSheetView.tsx
 export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   character,
   theme,
@@ -75,11 +77,11 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   // Theme is optional; prefer class-based styling.
   // Modal / Quick addition states for Homebrew
   const [showAddWeapon, setShowAddWeapon] = useState(false);
-  const [concentrationCheck, setConcentrationCheck] = useState<{
-    damage: number;
-    dc: number;
-    total?: number;
-  } | null>(null);
+  const [concentrationCheck, setConcentrationCheck] = useState<{ damage: number; dc: number; total?: number } | null>(null);
+
+  // Visual theming helper placeholder (avoid runtime crash if referenced)
+  const setFxOn = (_: boolean) => {};
+
   const hpEditStartingValue = useRef(character.currentHp);
   const hpEditUndoCaptured = useRef(false);
   const [lastCriticalAttack, setLastCriticalAttack] = useState<string | null>(null);
@@ -489,14 +491,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
   return (
     <div
-      className={`character-sheet flex flex-col w-full pb-16`}
+      className={`themed-content character-sheet flex flex-col w-full pb-16 bg-transparent`}
       onMouseEnter={() => setFxOn(true)}
       onMouseLeave={() => setFxOn(false)}
     >
       {/* ========================================================== */}
       {/* 1. ENCABEZADO: NOMBRE, CLASE, NIVEL Y ESPECIE (EDITABLES) */}
       {/* ========================================================== */}
-      <div className="relative bg-[#1c1a24] rounded-xl p-5 lg:p-6 mb-6 shadow-xl border border-white/5 overflow-hidden">
+      <div className="relative themed-panel p-5 lg:p-6 mb-6 overflow-hidden">
         <div         className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--class-theme-primary,rgba(251,191,36,0.1))] to-[var(--class-theme-secondary-container,rgba(87,27,193,0.15))] blur-3xl pointer-events-none"></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center relative z-10">
@@ -519,7 +521,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                     character.hasInspiration
                       ? 'bg-[var(--theme-secondary,#d0bcff)] gem-pulse shadow-[0_0_10px_rgba(208,188,255,0.7)]'
-                      : 'bg-[#1c1a24] opacity-40'
+                      : 'opacity-40 bg-transparent'
                   }`}
                 >
                   <span className="material-symbols-outlined text-black text-xs font-bold">
@@ -585,7 +587,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           {/* Campos Clave Editables: Clase, Subclase, Nivel, Especie, Trasfondo, Alineamiento */}
           <div className="lg:col-span-8 xl:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* Clase & Subclase */}
-            <div className="bg-[#211e28]/80 p-2.5 rounded-lg border border-white/5 flex flex-col">
+            <div className="themed-panel p-2.5 rounded-lg border border-white/5 flex flex-col">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Clase & Subclase
               </span>
@@ -610,7 +612,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Nivel */}
-            <div className="bg-[#211e28]/80 p-2.5 rounded-lg border border-white/5 flex flex-col">
+            <div className="themed-panel p-2.5 rounded-lg border border-white/5 flex flex-col">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Nivel
               </span>
@@ -683,7 +685,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Especie / Raza */}
-            <div className="bg-[#211e28]/80 p-2.5 rounded-lg border border-white/5 flex flex-col">
+            <div className="themed-panel p-2.5 rounded-lg border border-white/5 flex flex-col">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Especie / Raza
               </span>
@@ -702,7 +704,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Trasfondo & Alineamiento */}
-            <div className="bg-[#211e28]/80 p-2.5 rounded-lg border border-white/5 flex flex-col">
+            <div className="themed-panel p-2.5 rounded-lg border border-white/5 flex flex-col">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Trasfondo / Alineación
               </span>
@@ -730,7 +732,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       </div>
 
       <section className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Estados y defensas">
-        <div className="rounded-xl border border-red-400/20 bg-[#1c1a24] p-4">
+        <div className="rounded-xl border border-red-400/20 themed-panel p-4">
           <h2 className="mb-2 font-garamond text-base font-bold text-white">Condiciones activas</h2>
           <div className="flex flex-wrap gap-1.5">
             {activeConditions.length ? activeConditions.map((conditionId) => {
@@ -777,7 +779,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-[#1c1a24] p-4">
+        <div className="rounded-xl border border-white/10 themed-panel p-4">
           <h2 className="mb-2 font-garamond text-base font-bold text-white">Resistencias, vulnerabilidades e inmunidades</h2>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -827,7 +829,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         </div>
       </section>
 
-      <section className="mb-6 rounded-xl border border-white/10 bg-[#1c1a24] p-4" aria-label="Inventario">
+      <section className="mb-6 rounded-xl border border-white/10 themed-panel p-4" aria-label="Inventario">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-garamond text-xl font-bold text-white">Inventario</h2>
           <button
@@ -1044,7 +1046,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 className={`p-4 rounded-xl shadow-lg flex flex-col items-center text-center relative group transition-all duration-200 hover:-translate-y-0.5 border ${
                   isKey
                     ? 'bg-gradient-to-b from-[#2b2932] to-[#1c1a24] border-[var(--theme-primary,#fbbf24)]/50 shadow-[0_0_16px_rgba(251,191,36,0.15)]'
-                    : 'bg-[#1c1a24] border-white/5 hover:border-white/15'
+                    : 'border-white/5 hover:border-white/15 bg-transparent'
                 }`}
               >
                 {isKey && (
@@ -1152,7 +1154,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         <div className="lg:col-span-4 xl:col-span-4 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             {/* Clase de Armadura (CA) */}
-            <div className="bg-[#1c1a24] p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg relative group">
+            <div className="themed-panel p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg relative group">
               <span className="font-runic text-xs text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-sm">
                   shield
@@ -1196,7 +1198,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Iniciativa */}
-            <div className="bg-[#1c1a24] p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg group">
+            <div className="themed-panel p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg group">
               <div className="flex items-center justify-between w-full">
                 <span className="font-runic text-xs text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1">
                   <span className="material-symbols-outlined text-[var(--theme-secondary,#d0bcff)] text-sm">
@@ -1228,7 +1230,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Velocidad */}
-            <div className="bg-[#1c1a24] p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg">
+            <div className="themed-panel p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg">
               <span className="font-runic text-xs text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-emerald-400 text-sm">
                   directions_run
@@ -1253,7 +1255,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
             </div>
 
             {/* Bono de Competencia */}
-            <div className="bg-[#1c1a24] p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg">
+            <div className="themed-panel p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center shadow-lg">
               <span className="font-runic text-xs text-gray-300 font-bold uppercase tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-sm">
                   verified
@@ -1271,19 +1273,19 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
           {/* Estadísticas Mágicas Pasivas */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#1c1a24] p-3 rounded-lg border border-white/5 flex items-center justify-between">
+            <div className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between">
               <span className="text-xs text-gray-300 font-medium">Percepción Pasiva</span>
               <span className="font-mono text-base font-bold text-white">
                 {character.passivePerception}
               </span>
             </div>
-            <div className="bg-[#1c1a24] p-3 rounded-lg border border-white/5 flex items-center justify-between">
+            <div className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between">
               <span className="text-xs text-gray-300 font-medium">CD Salv. Conjuro</span>
               <span className="font-mono text-base font-bold text-[var(--theme-secondary,#d0bcff)]">
                 {character.spellSaveDc}
               </span>
             </div>
-            <div className="bg-[#1c1a24] p-3 rounded-lg border border-white/5 flex items-center justify-between">
+            <div className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between">
               <span className="text-xs text-gray-300 font-medium">Ataque de Conjuro</span>
               <button
                 onClick={() => onRollDice('Ataque de Conjuro', getSpellAttackModifier(character), 'Bono de ataque mágico', 20, 1, 'normal', undefined, false, 'attack')}
@@ -1297,7 +1299,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         </div>
 
         {/* PG Actuales / Máximos con botones + y -, Dados de Golpe y Salvaciones de Muerte */}
-        <div className="lg:col-span-8 xl:col-span-8 bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-8 xl:col-span-8 themed-panel p-5 rounded-xl border border-white/5 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -1492,7 +1494,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
 
               {/* PG Temporales y Dados de Golpe */}
               <div className="flex items-center gap-4">
-                <div className="flex flex-col items-center bg-[#1c1a24] px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex flex-col items-center px-3 py-1.5 rounded-lg border border-white/5 themed-panel">
                   <span className="text-[10px] text-gray-400 uppercase font-bold">PG Temp</span>
                   <input
                     type="number"
@@ -1506,7 +1508,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   />
                 </div>
 
-                <div className="flex flex-col items-center bg-[#1c1a24] px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex flex-col items-center px-3 py-1.5 rounded-lg border border-white/5 themed-panel">
                   <span className="text-[10px] text-gray-400 uppercase font-bold">Dados Golpe</span>
                   <input
                     type="text"
@@ -1604,7 +1606,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       {/* ========================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
         {/* Columna Izquierda: Habilidades y Destrezas */}
-        <div className="lg:col-span-7 bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
+        <div className="lg:col-span-7 themed-panel p-5 rounded-xl border border-white/5 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[var(--theme-secondary,#d0bcff)] text-xl">
@@ -1706,12 +1708,12 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 value={newSkill.name || ''}
                 onChange={(e) => setNewSkill((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Nombre de Habilidad Homebrew..."
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10 flex-1"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent flex-1"
               />
               <select
                 value={newSkill.attr || 'INT'}
                 onChange={(e) => setNewSkill((prev) => ({ ...prev, attr: e.target.value as AbilityCode }))}
-                className="bg-[#1c1a24] text-xs text-gray-200 px-2 py-1 rounded border border-white/10"
+                className="text-xs text-gray-200 px-2 py-1 rounded border border-white/10 bg-transparent"
               >
                 {['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'].map((a) => (
                   <option key={a} value={a}>{a}</option>
@@ -1758,7 +1760,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
         {/* Columna Derecha: Ranuras de Conjuro y Ataques de Armas */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           {/* Ranuras de Conjuro Interactivas */}
-          <div className="themed-panel bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
+          <div className="themed-panel p-5 rounded-xl border border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[var(--theme-secondary,#d0bcff)] text-xl">
@@ -1777,7 +1779,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               {character.spellSlots.map((tier, tierIdx) => (
                 <div
                   key={`tier-${tier.tier}`}
-                  className="flex items-center justify-between bg-[#211e28] p-3 rounded-lg border border-white/5"
+                  className="flex items-center justify-between bg-transparent p-3 rounded-lg border border-white/5"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-runic text-xs text-gray-300 font-bold uppercase">
@@ -1809,7 +1811,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           </div>
 
           {(character.classResources ?? []).length > 0 && (
-            <section className="themed-panel rounded-xl border border-[var(--theme-primary,#fbbf24)]/20 bg-[#1c1a24] p-4" aria-label="Recursos de clase">
+            <section className="themed-panel rounded-xl border border-[var(--theme-primary,#fbbf24)]/20 p-4" aria-label="Recursos de clase">
               <h3 className="mb-3 font-garamond text-lg font-bold text-white">Recursos de Clase</h3>
               <Divider />
               <div className="space-y-2 mt-3">
@@ -1847,7 +1849,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           )}
 
           {/* Ataques y Armas (Homebrew Ready) */}
-          <div className="bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
+          <div className="themed-panel p-5 rounded-xl border border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-xl">
@@ -1880,28 +1882,28 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                     value={newWeapon.name || ''}
                     onChange={(e) => setNewWeapon((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="Nombre del arma..."
-                    className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                    className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
                   />
                   <input
                     type="number"
                     value={newWeapon.attackBonus || 0}
                     onChange={(e) => setNewWeapon((prev) => ({ ...prev, attackBonus: parseInt(e.target.value, 10) || 0 }))}
                     placeholder="Bono ataque (+7)..."
-                    className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                    className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
                   />
                   <input
                     type="text"
                     value={newWeapon.damage || ''}
                     onChange={(e) => setNewWeapon((prev) => ({ ...prev, damage: e.target.value }))}
                     placeholder="Daño (ej. 1d8+4)..."
-                    className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                    className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
                   />
                   <input
                     type="text"
                     value={newWeapon.damageType || ''}
                     onChange={(e) => setNewWeapon((prev) => ({ ...prev, damageType: e.target.value }))}
                     placeholder="Tipo daño (Cortante)..."
-                    className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                    className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
                   />
                 </div>
                 <div className="flex justify-end gap-2 mt-1">
@@ -1968,7 +1970,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               ]).map((wpn) => (
                 <div
                   key={wpn.id}
-                  className="bg-[#211e28] p-3 rounded-lg border border-white/5 flex items-center justify-between"
+                  className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between"
                 >
                   <div className="flex flex-col">
                     <span className="font-semibold text-xs text-white flex items-center gap-1.5">
@@ -2074,7 +2076,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
       {/* ========================================================== */}
       {/* 5. RASGOS, DOTES (FEATS), MAGIAS Y NOTAS HOMEBREW         */}
       {/* ========================================================== */}
-      <div className="bg-[#1c1a24] p-5 rounded-xl border border-white/5 shadow-xl">
+      <div className="themed-panel p-5 rounded-xl border border-white/5 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-xl">
@@ -2110,14 +2112,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               value={newFeat.name || ''}
               onChange={(e) => setNewFeat((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="Nombre del Dote (Feat) Homebrew..."
-              className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+              className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
             />
             <textarea
               value={newFeat.description || ''}
               onChange={(e) => setNewFeat((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Descripción y mecánica del dote..."
               rows={2}
-              className="bg-[#1c1a24] text-xs text-gray-200 px-2 py-1 rounded border border-white/10"
+              className="text-xs text-gray-200 px-2 py-1 rounded border border-white/10 bg-transparent"
             />
             <div className="flex items-center gap-2">
               <label className="text-[10px] text-gray-400 uppercase font-bold" htmlFor="feat-ability">Bono de característica</label>
@@ -2125,7 +2127,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 id="feat-ability"
                 value={Object.keys(newFeat.abilityBonuses || {})[0] || 'INT'}
                 onChange={(e) => setNewFeat((prev) => ({ ...prev, abilityBonuses: { [e.target.value]: Number(Object.values(prev.abilityBonuses || {})[0] || 0) } }))}
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               >
                 {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as AbilityCode[]).map((code) => <option key={code} value={code}>{code}</option>)}
               </select>
@@ -2135,7 +2137,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 max="10"
                 value={Object.values(newFeat.abilityBonuses || {})[0] || 0}
                 onChange={(e) => setNewFeat((prev) => ({ ...prev, abilityBonuses: { [Object.keys(prev.abilityBonuses || {})[0] || 'INT']: Number(e.target.value) } }))}
-                className="w-16 bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="w-16 bg-transparent text-xs text-white px-2 py-1 rounded border border-white/10"
                 aria-label="Cantidad del bono de característica"
               />
             </div>
@@ -2202,7 +2204,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 value={newSpell.name || ''}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Nombre del Conjuro..."
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
               <input
                 type="number"
@@ -2211,21 +2213,21 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 value={newSpell.level ?? 1}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, level: parseInt(e.target.value, 10) || 0 }))}
                 placeholder="Nivel de conjuro..."
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
               <input
                 type="text"
                 value={newSpell.damageOrHeal || ''}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, damageOrHeal: e.target.value }))}
                 placeholder="Daño / Efecto (ej. 3d8 Fuego)..."
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
               <input
                 type="text"
                 value={newSpell.range || ''}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, range: e.target.value }))}
                 placeholder="Alcance (60 ft)..."
-                className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
             </div>
             <textarea
@@ -2233,7 +2235,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               onChange={(e) => setNewSpell((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Descripción del efecto..."
               rows={2}
-              className="bg-[#1c1a24] text-xs text-gray-200 px-2 py-1 rounded border border-white/10"
+              className="text-xs text-gray-200 px-2 py-1 rounded border border-white/10 bg-transparent"
             />
             <label className="flex items-center gap-2 text-xs text-gray-300">
               <input
@@ -2257,7 +2259,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 }))}
                 placeholder="1d6"
                 aria-label="Dados de daño extra por nivel de espacio"
-                className="w-24 rounded border border-white/10 bg-[#1c1a24] px-2 py-1 text-xs text-white"
+                className="w-24 rounded border border-white/10 bg-transparent px-2 py-1 text-xs text-white"
               />
             </label>
             {invalidUpcastDraft && <p role="alert" className="text-[10px] text-red-300">Usa solo una expresión de dados positiva, por ejemplo 1d6.</p>}

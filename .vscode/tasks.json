@@ -1,0 +1,247 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Dev Server",
+			"type": "shell",
+			"command": "cd \"c:\\Users\\axels\\Downloads\\CW for MCU 11.1\\grimorio\" ; npm run dev",
+			"isBackground": true
+		},
+		{
+			"label": "Build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Lint",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Re-lint",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Lint 2",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Lint 3",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Lint 4",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Build final",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "npm run lint",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "lint/build verify",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "lint verify",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Build after changes",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "lint verify 2",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Reemplazos (no tocar lógica) + lint",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"(Get-Content src\\components\\CharacterSheetView.tsx) -replace 'bg-\\[\\#1c1a24\\]','bg-transparent' -replace 'bg-\\[\\#211e28\\]','bg-transparent' -replace 'bg-\\[\\#211e28\\]\\/80','bg-transparent' -replace 'bg-\\[\\#211e28\\]\\/[^\\s\\\"]+','bg-transparent' | Set-Content src\\components\\CharacterSheetView.tsx"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Reemplazos (PowerShell)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$p='src\\components\\CharacterSheetView.tsx'; $c=Get-Content $p -Raw; $c=$c -replace 'bg-\\[\\#1c1a24\\]','bg-transparent'; $c=$c -replace 'bg-\\[\\#211e28\\]','bg-transparent'; $c=$c -replace 'bg-\\[\\#211e28\\]/80','bg-transparent'; Set-Content $p $c -Encoding UTF8"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Reemplazos manual segura",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('fs');const p='src/components/CharacterSheetView.tsx';let s=fs.readFileSync(p,'utf8');s=s.replace(/bg-\\[\\#1c1a24\\]/g,'bg-transparent');s=s.replace(/bg-\\[\\#211e28\\]/g,'bg-transparent');s=s.replace(/bg-\\[\\#211e28\\]\\/80/g,'bg-transparent');fs.writeFileSync(p,s,'utf8');console.log('done');"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Reemplazos (node)",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('fs');const p='src/components/CharacterSheetView.tsx';let s=fs.readFileSync(p,'utf8');s=s.replace(/bg-\\[\\#1c1a24\\]/g,'bg-transparent');s=s.replace(/bg-\\[\\#211e28\\]/g,'bg-transparent');s=s.replace(/bg-\\[\\#211e28\\]\\/80/g,'bg-transparent');fs.writeFileSync(p,s,'utf8');console.log('done');"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Apply limited styling: bg to transparent",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('fs');const p='src/components/CharacterSheetView.tsx';let s=fs.readFileSync(p,'utf8');s=s.replace(/bg-\\[\\#1c1a24\\]/g,'bg-transparent');s=s.replace(/bg-\\[\\#211e28\\]/g,'bg-transparent');fs.writeFileSync(p,s,'utf8');console.log('done');"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Quick lint still ok",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Replace background literals (targeted)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				""
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "lint"
+		},
+		{
+			"label": "Run Development Server",
+			"type": "shell",
+			"command": "npm run dev"
+		}
+	]
+}

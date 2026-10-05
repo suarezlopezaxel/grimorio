@@ -37,12 +37,12 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
         isOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-24 opacity-0 pointer-events-none'
       }`}
     >
-      <div className="bg-[#0f0d16]/95 border border-[#36333e] backdrop-blur-xl p-3.5 rounded-xl shadow-2xl flex flex-col gap-2">
+      <div className="bg-[var(--theme-surface-low)]/95 border border-[var(--theme-surface-high)] backdrop-blur-xl p-3.5 rounded-xl shadow-2xl flex flex-col gap-2">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-sm text-[var(--theme-primary,#fbbf24)]">casino</span>
-            <span className="font-runic text-xs font-bold uppercase tracking-wider text-[var(--theme-primary,#fbbf24)]">
+            <span className="material-symbols-outlined text-sm text-[var(--theme-primary)]">casino</span>
+            <span className="font-runic text-xs font-bold uppercase tracking-wider text-[var(--theme-primary)]">
               {latestRoll?.isCriticalDamage ? '¡CRÍTICO! ' : ''}{latestRoll?.title || 'Tirada Arcana'}
             </span>
           </div>
@@ -67,7 +67,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
 
         {/* Current Result */}
         {latestRoll && (
-          <div className="flex items-center justify-between bg-[#1c1a24] p-3 rounded-lg border border-white/5">
+          <div className="flex items-center justify-between themed-panel bg-transparent p-3 rounded-lg border border-white/5">
             <div className="flex flex-col">
               <span className="text-xs text-gray-300 font-mono">
                 {latestRoll.diceFormula
@@ -88,7 +88,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
                     <span className="material-symbols-outlined text-xs">skull</span> PIFIA CRÍTICA (1)
                   </span>
                 ) : (
-                  <span className="text-[var(--theme-secondary,#d0bcff)]">
+                  <span className="text-[var(--theme-secondary)]">
                     {latestRoll.subtext || 'Resultado final'}
                   </span>
                 )}
@@ -101,7 +101,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
                     ? 'text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]'
                     : latestRoll.isNat1
                     ? 'text-red-400'
-                    : 'text-[var(--theme-primary,#fbbf24)]'
+                    : 'text-[var(--theme-primary)]'
                 }`}
               >
                 {latestRoll.total}
@@ -116,7 +116,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
               <button
                 key={sides}
                 onClick={() => onRollDice(`Tirada d${sides}`, modifier, `${mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'Ventaja' : 'Desventaja'}`, sides, 1, mode)}
-                className="px-2.5 py-1 rounded bg-[#211e28] hover:bg-[var(--theme-primary,#fbbf24)] hover:text-[#261a00] text-xs font-bold border border-white/5"
+                className="px-2.5 py-1 rounded bg-[var(--theme-surface)] hover:bg-[var(--theme-primary)] hover:text-[var(--theme-on-primary-container)] text-xs font-bold border border-[var(--theme-surface-high)]"
               >
                 d{sides}
               </button>
@@ -128,7 +128,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
               id="dice-modifier"
               value={modifier}
               onChange={(event) => setModifier(Number(event.target.value))}
-              className="bg-[#211e28] text-xs text-white rounded border border-white/10 px-1.5 py-1"
+              className="bg-[var(--theme-surface)] text-xs text-white rounded border border-[var(--theme-surface-high)] px-1.5 py-1"
             >
               {Array.from({ length: 16 }, (_, index) => index - 5).map((value) => (
                 <option key={value} value={value}>{value >= 0 ? `+${value}` : value}</option>
@@ -137,7 +137,7 @@ export const DiceTrayModal: React.FC<DiceTrayProps> = ({
             <select
               value={mode}
               onChange={(event) => setMode(event.target.value as typeof mode)}
-              className="bg-[#211e28] text-xs text-white rounded border border-white/10 px-1.5 py-1"
+              className="bg-[var(--theme-surface)] text-xs text-white rounded border border-[var(--theme-surface-high)] px-1.5 py-1"
               aria-label="Modo de tirada"
             >
               <option value="normal">Normal</option>

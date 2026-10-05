@@ -26,7 +26,7 @@ export const LevelUpDialog: React.FC<LevelUpDialogProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="level-up-title"
-        className="w-full max-w-md rounded-xl border border-white/10 bg-[#1c1a24] p-5 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-white/10 themed-panel bg-transparent p-5 shadow-2xl"
       >
         <h2 id="level-up-title" className="font-garamond text-xl font-bold text-white">
           Progresión de Mago: nivel {currentLevel} → {targetLevel}
@@ -36,11 +36,11 @@ export const LevelUpDialog: React.FC<LevelUpDialogProps> = ({
         </p>
         <fieldset className="mt-4 space-y-2">
           <legend className="mb-2 text-xs font-bold uppercase text-gray-400">Aumento de puntos de golpe</legend>
-          <label className="flex items-center gap-2 rounded bg-[#211e28] p-2 text-sm text-gray-200">
+          <label className="flex items-center gap-2 rounded bg-[var(--theme-surface)] p-2 text-sm text-gray-200">
             <input type="radio" checked={method === 'average'} onChange={() => setMethod('average')} />
             Promedio: {Math.max(1, Math.floor(hitDie / 2) + 1 + constitutionModifier)} PG por nivel
           </label>
-          <label className="flex items-center gap-2 rounded bg-[#211e28] p-2 text-sm text-gray-200">
+          <label className="flex items-center gap-2 rounded bg-[var(--theme-surface)] p-2 text-sm text-gray-200">
             <input type="radio" checked={method === 'roll'} onChange={() => setMethod('roll')} />
             Tirar 1d{hitDie} + CON por cada nivel
           </label>
@@ -54,7 +54,7 @@ export const LevelUpDialog: React.FC<LevelUpDialogProps> = ({
           <button type="button" onClick={onCancel} className="rounded bg-white/10 px-3 py-2 text-xs text-gray-300">
             Cancelar
           </button>
-          <button type="button" onClick={() => onConfirm(method)} className="rounded bg-[var(--theme-primary,#fbbf24)] px-3 py-2 text-xs font-bold text-black">
+          <button type="button" onClick={() => onConfirm(method)} className="rounded bg-[var(--theme-primary)] px-3 py-2 text-xs font-bold text-[var(--theme-on-primary-container)]">
             Aplicar progresión
           </button>
         </div>

@@ -2,158 +2,712 @@
 
 @layer base {
   :root {
-    --theme-primary: #fbbf24;
-    --theme-primary-container: #fbbf24;
-    --theme-on-primary-container: #261a00;
-    --theme-secondary: #d0bcff;
-    --theme-secondary-container: #571bc1;
-    --theme-on-secondary-container: #c4abff;
-    --theme-accent: #38bdf8;
-    --theme-surface-low: #1c1a24;
-    --theme-surface: #211e28;
-    --theme-surface-high: #2b2932;
-    --theme-glow: rgba(87, 27, 193, 0.4);
-  }
-
-  html, body {
-    margin: 0;
-    padding: 0;
-    background-color: #14121b;
-    color: #e6e0ee;
-    font-family: 'Inter', system-ui, sans-serif;
+    --theme-primary: #8b5cf6;
+    --theme-secondary: #06b6d4;
+    --theme-accent: #a855f7;
+    --theme-glow: rgba(139, 92, 246, 0.4);
+    --theme-surface: rgba(18, 19, 31, 0.85);
+    --theme-border: rgba(139, 92, 246, 0.25);
+    --theme-bg-gradient: radial-gradient(circle at 50% 0%, rgba(30, 20, 50, 0.5) 0%, rgba(10, 11, 18, 1) 70%);
   }
 
   body {
-    overscroll-behavior: none;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    background-color: #090a10;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, .font-fantasy {
+    font-family: 'Cinzel', serif;
   }
 }
 
-/* Arcane aesthetics & sockets */
-.font-runic {
-  font-family: 'Cinzel', 'EB Garamond', serif;
+.font-cinzel {
+  font-family: 'Cinzel', serif;
 }
 
-.font-garamond {
-  font-family: 'EB Garamond', Georgia, serif;
+.font-cinzel-dec {
+  font-family: 'Cinzel Decorative', cursive, serif;
 }
 
+.font-medieval {
+  font-family: 'MedievalSharp', cursive, serif;
+}
+
+/* Arcane / Class Aesthetics */
 .arcane-vignette {
-  background: radial-gradient(circle at 50% 0%, var(--theme-glow, rgba(87, 27, 193, 0.18)) 0%, transparent 70%);
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
 }
 
 .jewel-socket {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 1px var(--theme-primary, rgba(251, 191, 36, 0.18));
-}
-
-.rune-socket {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85), 0 1px 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  border-radius: 9999px;
+  box-shadow: 0 0 12px var(--theme-glow), inset 0 2px 4px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .gem-pulse {
-  animation: pulse-glow 2.5s infinite alternate ease-in-out;
+  animation: gemPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 6px var(--theme-secondary, rgba(208, 188, 255, 0.4)), inset 0 0 2px rgba(255, 255, 255, 0.8);
+@keyframes gemPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px var(--theme-primary));
   }
-  100% {
-    box-shadow: 0 0 16px var(--theme-secondary, rgba(208, 188, 255, 0.8)), inset 0 0 5px rgba(255, 255, 255, 1);
+  50% {
+    opacity: 0.75;
+    transform: scale(0.96);
+    filter: drop-shadow(0 0 2px var(--theme-primary));
   }
 }
 
 .card-arcane-glow {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .card-arcane-glow:hover {
-  box-shadow: 0 10px 30px -4px var(--theme-glow, rgba(87, 27, 193, 0.4)), 0 0 12px var(--theme-primary, rgba(251, 191, 36, 0.2));
+  border-color: var(--theme-primary);
+  box-shadow: 0 8px 30px var(--theme-glow);
 }
 
 .runic-divider {
-  background: linear-gradient(90deg, transparent 0%, var(--theme-primary, #fbbf24) 50%, transparent 100%);
-  height: 1px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
 }
 
-/* Character sheet class themes (visual frames + lightweight effects) */
+.runic-divider::before,
+.runic-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--theme-border);
+}
 
-.character-sheet {
+/* Barbarian Screen Shake */
+@keyframes screenShake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  15% { transform: translate(-3px, 2px) rotate(-0.5deg); }
+  30% { transform: translate(3px, -2px) rotate(0.5deg); }
+  45% { transform: translate(-2px, -2px) rotate(-0.3deg); }
+  60% { transform: translate(2px, 3px) rotate(0.3deg); }
+  75% { transform: translate(-1px, 1px) rotate(-0.1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.shake-active {
+  animation: screenShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Barbarian Rage Vignette */
+.rage-vignette {
+  box-shadow: inset 0 0 120px rgba(185, 28, 28, 0.7), inset 0 0 40px rgba(220, 38, 38, 0.9);
+  animation: ragePulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes ragePulse {
+  0% { box-shadow: inset 0 0 100px rgba(185, 28, 28, 0.5), inset 0 0 30px rgba(220, 38, 38, 0.6); }
+  100% { box-shadow: inset 0 0 160px rgba(220, 38, 38, 0.8), inset 0 0 60px rgba(239, 68, 68, 0.95); }
+}
+
+/* Rogue Stealth Mode Darkness */
+.stealth-shadows {
+  filter: contrast(1.1) brightness(0.75);
+  box-shadow: inset 0 0 140px rgba(10, 5, 20, 0.95);
+  transition: all 0.5s ease-in-out;
+}
+
+/* Cleric God Rays */
+@keyframes godRaysSweep {
+  0% { opacity: 0.15; transform: rotate(-5deg) translateY(-2%); }
+  50% { opacity: 0.35; transform: rotate(0deg) translateY(0); }
+  100% { opacity: 0.15; transform: rotate(5deg) translateY(2%); }
+}
+
+.god-rays-sweep {
+  animation: godRaysSweep 8s ease-in-out infinite alternate;
+}
+
+/* Rotating Arcane Rings */
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rotateSlowRev {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.spin-slow {
+  animation: rotateSlow 45s linear infinite;
+}
+
+.spin-slow-rev {
+  animation: rotateSlowRev 60s linear infinite;
+}
+
+/* Custom Scrollbar for Fantasy Grimoire */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 12, 20, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-primary);
+}
+
+/* =========================================================
+   CLASS-SPECIFIC WIDGET, BOX, SUBBOX & MODIFIER STYLES
+   ========================================================= */
+
+/* BÁRBARO: Weathered Stone, Savage Bone Frames, Blood Marrow */
+.theme-widget-barbaro {
+  background: radial-gradient(ellipse at 50% 30%, #301414 0%, #1a0808 65%, #0d0303 100%);
+  border: 3px solid #8e2a2a;
+  box-shadow: inset 0 0 35px rgba(185, 28, 28, 0.35), 0 10px 30px rgba(0, 0, 0, 0.9);
   position: relative;
-  isolation: isolate;
 }
-
-.character-sheet::before {
+.theme-widget-barbaro::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 12px;
+  inset: 3px;
+  border: 1px dashed rgba(239, 68, 68, 0.35);
   pointer-events: none;
-  opacity: 0.9;
+  border-radius: inherit;
+}
+.theme-box-barbaro {
+  background: linear-gradient(145deg, #3d1b1b 0%, #220c0c 55%, #180707 100%);
+  border: 2px solid #b91c1c;
+  box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.3), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #fce7f3;
+  position: relative;
+}
+.theme-subbox-barbaro {
+  background: rgba(45, 18, 18, 0.88);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  box-shadow: inset 0 0 10px rgba(185, 28, 28, 0.3);
+  color: #fee2e2;
+}
+.theme-mod-barbaro {
+  background: radial-gradient(circle at 35% 35%, #5c1f1f 0%, #310c0c 60%, #150303 100%);
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.6), inset 0 2px 4px rgba(255, 200, 200, 0.25);
+  color: #ffffff;
 }
 
-@keyframes note-fade {
-  0% {
-    opacity: 0;
-    transform: translateY(0) scale(0.8);
-  }
-  20% {
-    opacity: 1;
-    transform: translateY(-12px) scale(1.1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-35px) scale(1.3);
-  }
+/* DRUIDA: Living Woodgrain Bark, Moss Lichen, Amber Resin */
+.theme-widget-druida {
+  background: radial-gradient(ellipse at 50% 30%, #1a3320 0%, #0d1e12 65%, #060e08 100%);
+  border: 3px solid #2d6a36;
+  box-shadow: inset 0 0 35px rgba(34, 197, 94, 0.25), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
 }
-
-.character-sheet--bardo.fx-on .fx-bardo-notes {
-  display: block;
-}
-
-/* fallback antiguos */
-.character-sheet--bardo .fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-.character-sheet--bardo.fx-on .fx-note { animation: note-fade 1.4s ease-out forwards; }
-
-@keyframes note-fade {
-  0% { opacity: 0; transform: translateY(6px) scale(0.95); }
-  15% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-18px) scale(1.05); }
-}
-
-/* Druida: efecto hojas al hover */
-.character-sheet--druida .fx-leaf {
+.theme-widget-druida::before {
+  content: '';
   position: absolute;
-  top: -10px;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px 8px 10px 8px;
-  background: rgba(110, 231, 183, 0.35);
-  box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+  inset: 3px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.theme-box-druida {
+  background: linear-gradient(145deg, #1b3822 0%, #102416 55%, #09150d 100%);
+  border: 2px solid #16a34a;
+  box-shadow: inset 0 0 18px rgba(34, 197, 94, 0.3), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #ecfdf5;
+  position: relative;
+}
+.theme-subbox-druida {
+  background: rgba(18, 38, 24, 0.88);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.25);
+  color: #d1fae5;
+}
+.theme-mod-druida {
+  background: radial-gradient(circle at 35% 35%, #23522f 0%, #13331b 60%, #08170c 100%);
+  border: 2px solid #4ade80;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.5), inset 0 2px 4px rgba(200, 255, 220, 0.3);
+  color: #ffffff;
 }
 
-.character-sheet--druida.fx-on .fx-leaf {
-  animation: leaf-fall 3s linear forwards;
+/* BARDO: Antique Score Sheet, Pentagram Musical Staves, Gold Filigree */
+.theme-widget-bardo {
+  background: radial-gradient(ellipse at 50% 25%, #381628 0%, #1f0b16 65%, #10040b 100%);
+  border: 3px solid #d4af37;
+  box-shadow: inset 0 0 35px rgba(212, 175, 55, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-widget-bardo::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-top: 1px solid rgba(212, 175, 55, 0.5);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.theme-box-bardo {
+  background: linear-gradient(145deg, #421b30 0%, #270e1c 55%, #170710 100%);
+  border: 2px solid #eab308;
+  box-shadow: inset 0 0 18px rgba(234, 179, 8, 0.3), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #fef9c3;
+  position: relative;
+}
+.theme-subbox-bardo {
+  background: rgba(48, 18, 35, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.25);
+  color: #fef08a;
+}
+.theme-mod-bardo {
+  background: radial-gradient(circle at 35% 35%, #633215 0%, #3f192b 60%, #1b0713 100%);
+  border: 2px solid #facc15;
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.6), inset 0 2px 4px rgba(255, 240, 180, 0.35);
+  color: #ffffff;
 }
 
-@keyframes leaf-fall {
-  0% { transform: translateY(-10px) translateX(0) rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  100% { transform: translateY(120px) translateX(24px) rotate(40deg); opacity: 0; }
+/* CLÉRIGO: White Alabaster Marble, Gothic Pointed Arches, Divine Halo */
+.theme-widget-clerigo {
+  background: radial-gradient(ellipse at 50% 20%, #322b1c 0%, #1a160d 65%, #0e0c07 100%);
+  border: 3px solid #eab308;
+  box-shadow: inset 0 0 35px rgba(250, 204, 21, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-clerigo {
+  background: linear-gradient(145deg, #3a321f 0%, #201b10 55%, #120f08 100%);
+  border: 2px solid #facc15;
+  box-shadow: inset 0 0 18px rgba(250, 204, 21, 0.35), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #fefce8;
+  position: relative;
+}
+.theme-subbox-clerigo {
+  background: rgba(42, 36, 22, 0.88);
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  box-shadow: inset 0 0 10px rgba(250, 204, 21, 0.25);
+  color: #fef9c3;
+}
+.theme-mod-clerigo {
+  background: radial-gradient(circle at 35% 35%, #614a1a 0%, #382c0f 60%, #181305 100%);
+  border: 2px solid #fde047;
+  box-shadow: 0 0 18px rgba(253, 224, 71, 0.6), inset 0 2px 4px rgba(255, 255, 200, 0.4);
+  color: #ffffff;
 }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* GUERRERO: Riveted Steel Armor Plate, Heavy Bolts, Heraldry */
+.theme-widget-guerrero {
+  background: radial-gradient(ellipse at 40% 30%, #2e3546 0%, #191d27 65%, #0f1118 100%);
+  border: 3px solid #94a3b8;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), inset 0 -2px 6px rgba(0, 0, 0, 0.7), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
 }
-::-webkit-scrollbar-track {
-  background: #14121b;
+.theme-box-guerrero {
+  background: linear-gradient(145deg, #333c50 0%, #1c212e 55%, #11141c 100%);
+  border: 2px solid #cbd5e1;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #f8fafc;
+  position: relative;
 }
-::-webkit-scrollbar-thumb {
-  background: #2b2932;
-  border-radius: 9999px;
+.theme-subbox-guerrero {
+  background: rgba(36, 43, 58, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  box-shadow: inset 0 0 10px rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #474352;
+.theme-mod-guerrero {
+  background: radial-gradient(circle at 35% 35%, #475569 0%, #293548 60%, #141a24 100%);
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 0 16px rgba(148, 163, 184, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  color: #ffffff;
 }
+
+/* MONJE: Sumi-e Washi Rice Paper, Black Ink Wash, Charcoal Slate & Cinnabar Seal */
+.theme-widget-monje {
+  background: radial-gradient(ellipse at 50% 30%, #1e1e24 0%, #121216 65%, #08080a 100%);
+  border: 2px solid #52525b;
+  box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.85), 0 10px 30px rgba(0, 0, 0, 0.95);
+  position: relative;
+}
+.theme-box-monje {
+  background: linear-gradient(145deg, #27272a 0%, #18181b 55%, #09090b 100%);
+  border: 1px solid #71717a;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.7), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #f4f4f5;
+  position: relative;
+}
+.theme-subbox-monje {
+  background: rgba(24, 24, 27, 0.92);
+  border: 1px solid rgba(113, 113, 122, 0.4);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+  color: #e4e4e7;
+}
+.theme-mod-monje {
+  background: radial-gradient(circle at 35% 35%, #3f3f46 0%, #27272a 60%, #09090b 100%);
+  border: 2px solid #a1a1aa;
+  box-shadow: 0 0 14px rgba(161, 161, 170, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* PALADÍN: Royal Sapphire Enamel, Silver Wings, Holy Radiant Aura */
+.theme-widget-paladin {
+  background: radial-gradient(ellipse at 50% 25%, #1c304a 0%, #101c2b 65%, #080e16 100%);
+  border: 3px solid #38bdf8;
+  box-shadow: inset 0 0 35px rgba(56, 189, 248, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-paladin {
+  background: linear-gradient(145deg, #1f3654 0%, #102033 55%, #09131e 100%);
+  border: 2px solid #38bdf8;
+  box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.35), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #f0f9ff;
+  position: relative;
+}
+.theme-subbox-paladin {
+  background: rgba(23, 41, 64, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.25);
+  color: #bae6fd;
+}
+.theme-mod-paladin {
+  background: radial-gradient(circle at 35% 35%, #1d4ed8 0%, #172554 60%, #08112b 100%);
+  border: 2px solid #7dd3fc;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.6), inset 0 2px 4px rgba(200, 240, 255, 0.4);
+  color: #ffffff;
+}
+
+/* PÍCARO: Hand-Stitched Black Leather, Brass Detailing, Hidden Shadows */
+.theme-widget-picaro {
+  background: radial-gradient(ellipse at 50% 25%, #1f0e2e 0%, #11061b 55%, #07030c 100%);
+  border: 2px solid #ca8a04;
+  box-shadow: inset 0 0 50px rgba(10, 4, 18, 0.95), 0 0 25px rgba(168, 85, 247, 0.25), 0 10px 30px rgba(0, 0, 0, 0.95);
+  position: relative;
+}
+.theme-widget-picaro::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(202, 138, 4, 0.55);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.theme-box-picaro {
+  background: linear-gradient(145deg, #241036 0%, #140722 55%, #09030f 100%);
+  border: 2px solid #ca8a04;
+  box-shadow: inset 0 0 22px rgba(168, 85, 247, 0.25), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #faf5ff;
+  position: relative;
+}
+.theme-box-picaro::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px dotted rgba(202, 138, 4, 0.35);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.theme-subbox-picaro {
+  background: rgba(26, 12, 40, 0.92);
+  border: 1px solid rgba(202, 138, 4, 0.45);
+  box-shadow: inset 0 0 12px rgba(168, 85, 247, 0.2);
+  color: #f3e8ff;
+}
+.theme-mod-picaro {
+  background: radial-gradient(circle at 35% 35%, #4c1d63 0%, #260c33 60%, #0e0214 100%);
+  border: 2px solid #ca8a04;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.5), inset 0 2px 4px rgba(254, 240, 138, 0.4);
+  color: #ffffff;
+}
+
+/* EXPLORADOR: Weathered Navigational Chart, Topo Curves, Compass Dial */
+.theme-widget-explorador {
+  background: radial-gradient(ellipse at 50% 30%, #273019 0%, #151a0d 65%, #0c0f07 100%);
+  border: 3px solid #65a30d;
+  box-shadow: inset 0 0 35px rgba(132, 204, 22, 0.25), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-explorador {
+  background: linear-gradient(145deg, #2d381c 0%, #19210f 55%, #0e1307 100%);
+  border: 2px solid #84cc16;
+  box-shadow: inset 0 0 18px rgba(132, 204, 22, 0.3), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #f7fee7;
+  position: relative;
+}
+.theme-subbox-explorador {
+  background: rgba(34, 43, 21, 0.88);
+  border: 1px solid rgba(132, 204, 22, 0.5);
+  box-shadow: inset 0 0 10px rgba(132, 204, 22, 0.25);
+  color: #d9f99d;
+}
+.theme-mod-explorador {
+  background: radial-gradient(circle at 35% 35%, #3f6212 0%, #1a2e05 60%, #0d1702 100%);
+  border: 2px solid #a3e635;
+  box-shadow: 0 0 16px rgba(163, 230, 53, 0.5), inset 0 2px 4px rgba(220, 255, 180, 0.3);
+  color: #ffffff;
+}
+
+/* HECHICERO: Crystalline Mana Geode, Pulsing Energy Veins, Sparks */
+.theme-widget-hechicero {
+  background: radial-gradient(ellipse at 50% 30%, #381430 0%, #1f0a1a 65%, #10040d 100%);
+  border: 3px solid #db2777;
+  box-shadow: inset 0 0 40px rgba(236, 72, 153, 0.35), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-hechicero {
+  background: linear-gradient(145deg, #421838 0%, #240c1e 55%, #130510 100%);
+  border: 2px solid #f472b6;
+  box-shadow: inset 0 0 20px rgba(236, 72, 153, 0.35), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #fdf2f8;
+  position: relative;
+}
+.theme-subbox-hechicero {
+  background: rgba(48, 16, 41, 0.88);
+  border: 1px solid rgba(236, 72, 153, 0.5);
+  box-shadow: inset 0 0 10px rgba(236, 72, 153, 0.25);
+  color: #fbcfe8;
+}
+.theme-mod-hechicero {
+  background: radial-gradient(circle at 35% 35%, #831843 0%, #500724 60%, #20020d 100%);
+  border: 2px solid #f472b6;
+  box-shadow: 0 0 18px rgba(244, 114, 182, 0.6), inset 0 2px 4px rgba(255, 210, 235, 0.4);
+  color: #ffffff;
+}
+
+/* BRUJO: Demonic Grimoire Leather, Toxic Emerald Sigils, Void Eyes */
+.theme-widget-brujo {
+  background: radial-gradient(ellipse at 50% 30%, #142e22 0%, #0a1b14 65%, #050d0a 100%);
+  border: 3px solid #059669;
+  box-shadow: inset 0 0 40px rgba(16, 185, 129, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-brujo {
+  background: linear-gradient(145deg, #173729 0%, #0d2219 55%, #06110d 100%);
+  border: 2px solid #10b981;
+  box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.3), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #ecfdf5;
+  position: relative;
+}
+.theme-subbox-brujo {
+  background: rgba(16, 41, 30, 0.88);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+}
+.theme-mod-brujo {
+  background: radial-gradient(circle at 35% 35%, #064e3b 0%, #022c22 60%, #01140f 100%);
+  border: 2px solid #34d399;
+  box-shadow: 0 0 18px rgba(52, 211, 153, 0.6), inset 0 2px 4px rgba(200, 255, 230, 0.4);
+  color: #ffffff;
+}
+
+/* MAGO: Deep Astral Sapphire Slate, Gilded Grimoire, Transmutation Rings */
+.theme-widget-mago {
+  background: radial-gradient(ellipse at 50% 30%, #1e2447 0%, #101328 65%, #080916 100%);
+  border: 3px solid #4f46e5;
+  box-shadow: inset 0 0 35px rgba(99, 102, 241, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-mago {
+  background: linear-gradient(145deg, #222950 0%, #121631 55%, #0a0b1b 100%);
+  border: 2px solid #6366f1;
+  box-shadow: inset 0 0 18px rgba(99, 102, 241, 0.35), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #eef2ff;
+  position: relative;
+}
+.theme-subbox-mago {
+  background: rgba(24, 29, 61, 0.88);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+}
+.theme-mod-mago {
+  background: radial-gradient(circle at 35% 35%, #3730a3 0%, #1e1b4b 60%, #0c0a27 100%);
+  border: 2px solid #818cf8;
+  box-shadow: 0 0 18px rgba(129, 140, 248, 0.6), inset 0 2px 4px rgba(210, 220, 255, 0.4);
+  color: #ffffff;
+}
+
+/* ARTÍFICE: Technical Blueprint Cyan, Hammered Copper, Brass Calipers */
+.theme-widget-artifice {
+  background: radial-gradient(ellipse at 50% 30%, #382012 0%, #1f1008 65%, #100804 100%);
+  border: 3px solid #ea580c;
+  box-shadow: inset 0 0 35px rgba(249, 115, 22, 0.3), 0 10px 30px rgba(0, 0, 0, 0.9);
+  position: relative;
+}
+.theme-box-artifice {
+  background: linear-gradient(145deg, #442615 0%, #24130a 55%, #130a05 100%);
+  border: 2px solid #f97316;
+  box-shadow: inset 0 0 18px rgba(249, 115, 22, 0.35), 0 6px 16px rgba(0, 0, 0, 0.85);
+  color: #fff7ed;
+  position: relative;
+}
+.theme-subbox-artifice {
+  background: rgba(48, 25, 13, 0.88);
+  border: 1px solid rgba(249, 115, 22, 0.5);
+  box-shadow: inset 0 0 10px rgba(249, 115, 22, 0.25);
+  color: #fed7aa;
+}
+.theme-mod-artifice {
+  background: radial-gradient(circle at 35% 35%, #7c2d12 0%, #431407 60%, #1a0602 100%);
+  border: 2px solid #fb923c;
+  box-shadow: 0 0 18px rgba(251, 146, 60, 0.6), inset 0 2px 4px rgba(255, 220, 190, 0.4);
+  color: #ffffff;
+}
+
+/* =========================================================
+   IMMERSIVE CLASS-SPECIFIC BACKGROUND TEXTURES & AMBIENT
+   ========================================================= */
+
+/* PÍCARO: Midnight Black Leather, Stitched Diamond Texture, Tarnished Brass */
+.bg-class-picaro {
+  background-color: #06020a;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(95, 25, 135, 0.38) 0%, transparent 65%),
+    radial-gradient(circle at 15% 45%, rgba(168, 85, 247, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 65%, rgba(202, 138, 4, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(30, 10, 48, 0.45) 0%, transparent 70%),
+    linear-gradient(45deg, rgba(25, 10, 36, 0.45) 25%, transparent 25%, transparent 75%, rgba(25, 10, 36, 0.45) 75%),
+    linear-gradient(-45deg, rgba(25, 10, 36, 0.45) 25%, transparent 25%, transparent 75%, rgba(25, 10, 36, 0.45) 75%),
+    linear-gradient(180deg, #090312 0%, #040108 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px, 100% 100%;
+}
+
+/* BARDO: Antique Score Sheet, Warm Burgundy Wine, Golden Pentagram Staves */
+.bg-class-bardo {
+  background-color: #0b0508;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(88, 20, 45, 0.35) 0%, transparent 65%),
+    radial-gradient(circle at 80% 25%, rgba(212, 175, 55, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 20% 70%, rgba(180, 83, 9, 0.1) 0%, transparent 40%),
+    linear-gradient(180deg, #11060e 0%, #070306 100%);
+}
+
+/* DRUIDA: Mossy Woodland, Amber Sap, Oak Bark */
+.bg-class-druida {
+  background-color: #050d07;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(34, 197, 94, 0.28) 0%, transparent 65%),
+    radial-gradient(circle at 20% 60%, rgba(245, 158, 11, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 80% 75%, rgba(21, 128, 61, 0.15) 0%, transparent 40%),
+    linear-gradient(180deg, #09170e 0%, #030804 100%);
+}
+
+/* BÁRBARO: Weathered Volcanic Stone, Ash Charcoal, Rawhide Ochre */
+.bg-class-barbaro {
+  background-color: #0b0505;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(65, 20, 20, 0.35) 0%, transparent 65%),
+    radial-gradient(circle at 80% 40%, rgba(180, 83, 9, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 20% 65%, rgba(40, 10, 10, 0.4) 0%, transparent 40%),
+    linear-gradient(180deg, #130707 0%, #070303 100%);
+}
+
+/* CLÉRIGO: Cathedral Sacred Marble, Divine Golden Radiance */
+.bg-class-clerigo {
+  background-color: #0c0a06;
+  background-image: 
+    radial-gradient(ellipse at 50% 10%, rgba(250, 204, 21, 0.25) 0%, transparent 60%),
+    radial-gradient(circle at 30% 70%, rgba(56, 189, 248, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 75% 40%, rgba(254, 240, 138, 0.06) 0%, transparent 40%),
+    linear-gradient(180deg, #141109 0%, #070603 100%);
+}
+
+/* GUERRERO: Cold Forged Armor Plate, Brushed Steel, Bronze Rivets */
+.bg-class-guerrero {
+  background-color: #0a0c10;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(148, 163, 184, 0.25) 0%, transparent 65%),
+    radial-gradient(circle at 75% 55%, rgba(180, 83, 9, 0.08) 0%, transparent 40%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(180deg, #11151e 0%, #07080c 100%);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px, 100% 100%;
+}
+
+/* MONJE: Sumi-e Washi Rice Paper, Zen Black Ink, Charcoal Stone (No Red Glow) */
+.bg-class-monje {
+  background-color: #09090b;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(39, 39, 42, 0.6) 0%, transparent 65%),
+    radial-gradient(circle at 20% 50%, rgba(24, 24, 27, 0.8) 0%, transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(161, 161, 170, 0.06) 0%, transparent 40%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(180deg, #121215 0%, #070709 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 48px 48px, 100% 100%;
+}
+
+/* PALADÍN: Royal Sapphire, Argent Silver, Holy Wings */
+.bg-class-paladin {
+  background-color: #060b13;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.3) 0%, transparent 65%),
+    radial-gradient(circle at 80% 60%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 20% 40%, rgba(2, 132, 199, 0.15) 0%, transparent 40%),
+    linear-gradient(180deg, #0d1726 0%, #04070d 100%);
+}
+
+/* EXPLORADOR: Weathered Topographic Map, Wayfinder Compass, Forest Trail */
+.bg-class-explorador {
+  background-color: #080a05;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(132, 204, 22, 0.28) 0%, transparent 65%),
+    radial-gradient(circle at 20% 50%, rgba(120, 53, 15, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 75% 70%, rgba(77, 124, 15, 0.12) 0%, transparent 40%),
+    linear-gradient(180deg, #10150a 0%, #050703 100%);
+}
+
+/* HECHICERO: Primordial Chaos Pink, Storm Lightning Veins, Raw Crystals */
+.bg-class-hechicero {
+  background-color: #090408;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(236, 72, 153, 0.3) 0%, transparent 65%),
+    radial-gradient(circle at 80% 50%, rgba(6, 182, 212, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 25% 75%, rgba(168, 85, 247, 0.1) 0%, transparent 40%),
+    linear-gradient(180deg, #140712 0%, #050204 100%);
+}
+
+/* BRUJO: Demonic Leather, Toxic Emerald Mists, Void Violet Whispers */
+.bg-class-brujo {
+  background-color: #040907;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(16, 185, 129, 0.28) 0%, transparent 60%),
+    radial-gradient(circle at 30% 60%, rgba(124, 58, 237, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(5, 150, 105, 0.1) 0%, transparent 40%),
+    linear-gradient(180deg, #081611 0%, #020604 100%);
+}
+
+/* MAGO: Starlight Indigo Sky, Arcane Concentric Circles, Celestial Astrolabe */
+.bg-class-mago {
+  background-color: #060712;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(99, 102, 241, 0.3) 0%, transparent 65%),
+    radial-gradient(circle at 75% 45%, rgba(14, 165, 233, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 20% 70%, rgba(79, 70, 229, 0.15) 0%, transparent 40%),
+    linear-gradient(180deg, #0d1022 0%, #03040c 100%);
+}
+
+/* ARTÍFICE: Technical Blueprint Grid, Burnished Copper, Brass Calipers */
+.bg-class-artifice {
+  background-color: #0a0604;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(249, 115, 22, 0.28) 0%, transparent 60%),
+    radial-gradient(circle at 25% 65%, rgba(56, 189, 248, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 80% 40%, rgba(234, 179, 8, 0.08) 0%, transparent 40%),
+    linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #140c07 0%, #060302 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 30px 30px, 30px 30px, 100% 100%;
+}
+
+

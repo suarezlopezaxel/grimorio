@@ -15,7 +15,7 @@ interface InitiativeTrackerProps {
 }
 
 const SIDES: Array<{ id: Combatant['side']; label: string; className: string }> = [
-  { id: 'player', label: 'Jugador', className: 'text-[var(--theme-primary,#fbbf24)]' },
+  { id: 'player', label: 'Jugador', className: 'text-[var(--theme-primary)]' },
   { id: 'ally', label: 'Aliado', className: 'text-emerald-300' },
   { id: 'enemy', label: 'Enemigo', className: 'text-red-300' },
 ];
@@ -168,7 +168,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   };
 
   return (
-    <section className="mb-6 rounded-xl border border-amber-400/20 bg-[#1c1a24] p-4" aria-label="Orden de iniciativa">
+    <section className="themed-panel mb-6 rounded-xl border border-amber-400/20 bg-transparent p-4" aria-label="Orden de iniciativa">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-garamond text-lg font-bold text-white">Orden de iniciativa</h2>
@@ -179,7 +179,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
             <button
               type="button"
               onClick={handleAddLinkedCharacter}
-              className="rounded border border-[var(--theme-primary,#fbbf24)]/30 px-2.5 py-1 text-[11px] text-[var(--theme-primary,#fbbf24)]"
+              className="rounded border border-[var(--theme-primary)]/30 px-2.5 py-1 text-[11px] text-[var(--theme-primary)]"
             >
               Añadir mi ficha
             </button>
@@ -188,7 +188,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
             type="button"
             onClick={handleRollAll}
             disabled={encounter.combatants.length === 0}
-            className="rounded bg-[#2b2932] px-2.5 py-1 text-[11px] text-gray-200 disabled:opacity-40"
+            className="rounded bg-[var(--theme-surface-high)] px-2.5 py-1 text-[11px] text-gray-200 disabled:opacity-40"
           >
             Tirar todos
           </button>
@@ -202,13 +202,13 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
           placeholder="Nombre del combatiente"
           aria-label="Nombre del combatiente"
           required
-          className="min-w-40 flex-1 rounded border border-white/10 bg-[#211e28] px-2.5 py-1.5 text-xs text-white"
+          className="min-w-40 flex-1 rounded border border-[var(--theme-surface-high)] bg-[var(--theme-surface)] px-2.5 py-1.5 text-xs text-white"
         />
         <select
           value={newSide}
           onChange={(event) => setNewSide(event.target.value as Combatant['side'])}
           aria-label="Equipo del combatiente"
-          className="rounded border border-white/10 bg-[#211e28] px-2 py-1.5 text-xs text-white"
+          className="rounded border border-[var(--theme-surface-high)] bg-[var(--theme-surface)] px-2 py-1.5 text-xs text-white"
         >
           {SIDES.map((side) => <option key={side.id} value={side.id}>{side.label}</option>)}
         </select>
@@ -219,7 +219,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
           onChange={(event) => setNewMaxHp(event.target.value)}
           placeholder="PG máx."
           aria-label="Puntos de golpe máximos del combatiente"
-          className="w-20 rounded border border-white/10 bg-[#211e28] px-2 py-1.5 text-xs text-white"
+          className="w-20 rounded border border-[var(--theme-surface-high)] bg-[var(--theme-surface)] px-2 py-1.5 text-xs text-white"
         />
         <input
           type="number"
@@ -228,9 +228,9 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
           onChange={(event) => setNewAc(event.target.value)}
           placeholder="CA"
           aria-label="Clase de armadura del combatiente"
-          className="w-16 rounded border border-white/10 bg-[#211e28] px-2 py-1.5 text-xs text-white"
+          className="w-16 rounded border border-[var(--theme-surface-high)] bg-[var(--theme-surface)] px-2 py-1.5 text-xs text-white"
         />
-        <button type="submit" className="rounded bg-[var(--theme-secondary-container,#571bc1)] px-3 py-1.5 text-xs font-semibold text-white">Añadir</button>
+        <button type="submit" className="rounded bg-[var(--theme-secondary-container)] px-3 py-1.5 text-xs font-semibold text-white">Añadir</button>
       </form>
 
       {orderedEncounter.combatants.length === 0 ? (
@@ -246,7 +246,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
             return (
               <li
                 key={combatant.id}
-                className={`rounded-lg border p-3 ${isCurrent ? 'border-amber-400/60 bg-amber-500/10 shadow-[0_0_12px_rgba(251,191,36,0.12)]' : 'border-white/5 bg-[#211e28]'}`}
+                className={`rounded-lg border p-3 ${isCurrent ? 'border-[var(--theme-primary)]/60 bg-[var(--theme-primary)]/10 shadow-[0_0_12px_var(--theme-glow)]' : 'border-[var(--theme-surface-high)] bg-[var(--theme-surface)]'}`}
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`w-7 text-center font-garamond text-lg font-bold ${isCurrent ? 'text-amber-300' : 'text-gray-400'}`}>{index + 1}</span>
@@ -279,7 +279,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                           aria-label={`Bono de iniciativa de ${combatant.name}`}
                         />
                       </label>
-                      <button type="button" onClick={() => handleRollOne(combatant)} className="rounded bg-[#2b2932] px-2 py-0.5 text-[10px] text-amber-200">Tirar</button>
+                      <button type="button" onClick={() => handleRollOne(combatant)} className="rounded bg-[var(--theme-surface-high)] px-2 py-0.5 text-[10px] text-[var(--theme-primary)]">Tirar</button>
                       {hp !== undefined && (
                         <span className="flex items-center gap-1">
                           PG
@@ -294,7 +294,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                           type="button"
                           disabled={hasLinkedCharacter}
                           onClick={() => handleLinkCharacter(combatant.id, true)}
-                          className="text-[var(--theme-primary,#fbbf24)] disabled:opacity-40"
+                          className="text-[var(--theme-primary)] disabled:opacity-40"
                         >
                           Vincular ficha
                         </button>

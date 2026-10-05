@@ -2,7 +2,8 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { FxLayer } from './FxLayer';
 import { THEMES, themeKey } from '../fxThemes';
 
-const Ctx = createContext('mago');
+export const Ctx = createContext('mago');
+export const useThemeClass = () => useContext(Ctx);
 
 /**
  * Envuelve toda la app/hoja.
@@ -19,7 +20,7 @@ export function ThemedRoot({ cls, element = 'normal', sub = '', state = '', burs
   return (
     <Ctx.Provider value={k}>
       <div
-        className="themed-root"
+        className={`themed-root bg-class-${k}`}
         data-class={k}
         data-element={element.toLowerCase()}
         data-sub={sub}

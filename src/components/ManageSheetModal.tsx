@@ -172,10 +172,10 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="bg-[#1c1a24] border border-[#36333e] rounded-xl max-w-xl w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl relative">
+      <div className="themed-panel bg-transparent border border-[var(--theme-surface-high)] rounded-xl max-w-xl w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl relative">
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl text-[var(--theme-primary,#fbbf24)]">
+            <span className="material-symbols-outlined text-xl text-[var(--theme-primary)]">
               folder_open
             </span>
             <div>
@@ -196,7 +196,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
         </div>
 
         {/* Quick Save Current */}
-        <div className="bg-[#0f0d16] p-3.5 rounded-lg border border-white/5 mb-4">
+        <div className="bg-[var(--theme-surface-low)] p-3.5 rounded-lg border border-[var(--theme-surface-high)] mb-4">
           <span className="font-runic text-[10px] text-gray-400 uppercase font-bold block mb-1">
             Guardar Ficha Activa
           </span>
@@ -206,11 +206,11 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
               placeholder={`ej. ${currentCharacter.name} (Sesión 4)`}
               value={newSlotName}
               onChange={(e) => setNewSlotName(e.target.value)}
-              className="flex-1 bg-[#1c1a24] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-[var(--theme-primary,#fbbf24)]"
+              className="flex-1 bg-transparent text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none focus:border-[var(--theme-primary)]"
             />
             <button
               onClick={handleSaveCurrent}
-              className="px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs hover:brightness-110 shadow-sm whitespace-nowrap"
+              className="px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)] font-bold text-xs hover:brightness-110 shadow-sm whitespace-nowrap"
             >
               Guardar en Bóveda
             </button>
@@ -224,7 +224,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
           </span>
 
           {savedSlots.length === 0 ? (
-            <div className="p-4 rounded-lg bg-[#0f0d16] border border-white/5 text-center text-xs text-gray-400">
+            <div className="p-4 rounded-lg bg-[var(--theme-surface-low)] border border-[var(--theme-surface-high)] text-center text-xs text-gray-400">
               No hay fichas guardadas en la memoria local aún. Guarda la ficha actual arriba para crear una copia de seguridad.
             </div>
           ) : (
@@ -232,7 +232,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
               {savedSlots.map((slot) => (
                 <div
                   key={slot.id}
-                  className="p-2.5 rounded-lg bg-[#0f0d16] border border-white/5 flex items-center justify-between hover:border-white/20 transition-all"
+                  className="p-2.5 rounded-lg bg-[var(--theme-surface-low)] border border-[var(--theme-surface-high)] flex items-center justify-between hover:border-white/20 transition-all"
                 >
                   <div className="flex flex-col">
                     <span className="font-garamond text-base font-bold text-white leading-tight">
@@ -249,7 +249,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
                         onLoadCharacter(slot.charData, slot.cardsData, slot.classKey, slot.combatData);
                         onClose();
                       }}
-                      className="px-3 py-1 rounded bg-[var(--theme-secondary-container,#571bc1)] text-white text-xs font-semibold hover:brightness-110"
+                      className="px-3 py-1 rounded bg-[var(--theme-secondary-container)] text-white text-xs font-semibold hover:brightness-110"
                     >
                       Cargar
                     </button>
@@ -271,13 +271,13 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
         <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/10 text-xs">
           <button
             onClick={handleExportJson}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#211e28] hover:bg-[#2b2932] text-gray-200 border border-white/5"
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-high)] text-gray-200 border border-[var(--theme-surface-high)]"
           >
             <span className="material-symbols-outlined text-sm">download</span>
             <span>Exportar JSON</span>
           </button>
 
-          <label className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#211e28] hover:bg-[#2b2932] text-gray-200 border border-white/5 cursor-pointer">
+          <label className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-high)] text-gray-200 border border-[var(--theme-surface-high)] cursor-pointer">
             <span className="material-symbols-outlined text-sm">upload</span>
             <span>Importar JSON</span>
             <input
@@ -295,7 +295,7 @@ export const ManageSheetModal: React.FC<ManageSheetModalProps> = ({
                 onClose();
               }
             }}
-            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#211e28] hover:bg-red-950 text-red-300 border border-white/5"
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[var(--theme-surface)] hover:bg-red-950 text-red-300 border border-[var(--theme-surface-high)]"
           >
             <span className="material-symbols-outlined text-sm">restart_alt</span>
             <span>Restablecer</span>

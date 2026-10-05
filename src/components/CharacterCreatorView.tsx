@@ -467,7 +467,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
   return (
     <div className="flex flex-col w-full pb-16">
       {/* Stepper Progress Bar */}
-      <div className="bg-[#1c1a24] rounded-xl p-4 lg:p-5 mb-6 shadow-xl border border-white/5">
+      <div className="themed-panel bg-transparent rounded-xl p-4 lg:p-5 mb-6 shadow-xl border border-white/5">
         <div className="flex items-center justify-between mb-3">
           <span className="font-garamond text-lg font-bold text-white">
             Asistente de Creación de Personaje
@@ -513,7 +513,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
       {/* Main Stepper Body: Form on Left, Live Preview on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Form Container (7 cols) */}
-        <div className="lg:col-span-7 bg-[#1c1a24] rounded-xl p-5 shadow-xl border border-white/5">
+        <div className="lg:col-span-7 themed-panel bg-transparent rounded-xl p-5 shadow-xl border border-white/5">
           {/* ======================================================= */}
           {/* PASO 1: ESPECIE / RAZA (EDITABLE & HOMEBREW)            */}
           {/* ======================================================= */}
@@ -844,7 +844,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                             const n = parseInt(e.target.value, 10) || 10;
                             setScores((prev) => ({ ...prev, [stat]: n }));
                           }}
-                          className="w-12 text-center bg-[#1c1a24] text-sm text-white font-bold py-1 rounded border border-white/10"
+                          className="w-12 text-center bg-transparent text-sm text-white font-bold py-1 rounded border border-white/10"
                         />
 
                         {scoreMode === 'pointbuy' && (
@@ -1025,14 +1025,14 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     value={newWpnName}
                     onChange={(e) => setNewWpnName(e.target.value)}
                     placeholder="Nombre del arma homebrew..."
-                    className="flex-1 bg-[#1c1a24] text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
+                    className="flex-1 bg-transparent text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
                   />
                   <input
                     type="text"
                     value={newWpnDmg}
                     onChange={(e) => setNewWpnDmg(e.target.value)}
                     placeholder="Daño (1d8+3)..."
-                    className="w-24 bg-[#1c1a24] text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
+                    className="w-24 bg-transparent text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
                   />
                   <button
                     type="button"
@@ -1064,13 +1064,13 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     value={newSpellName}
                     onChange={(event) => setNewSpellName(event.target.value)}
                     placeholder="Nombre del conjuro"
-                    className="col-span-2 rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white sm:col-span-2"
+                    className="col-span-2 rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white sm:col-span-2"
                   />
                   <select
                     value={newSpellLevel}
                     onChange={(event) => setNewSpellLevel(Number(event.target.value))}
                     aria-label="Nivel de conjuro"
-                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                    className="rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white"
                   >
                     {Array.from({ length: maxSpellLevel + 1 }, (_, spellLevel) => (
                       <option key={spellLevel} value={spellLevel}>{spellLevel === 0 ? 'Truco' : `Nivel ${spellLevel}`}</option>
@@ -1081,14 +1081,14 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     onChange={(event) => setNewSpellDamage(event.target.value)}
                     placeholder="Daño / efecto"
                     aria-label="Daño o efecto de conjuro"
-                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                    className="rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white"
                   />
                   <input
                     value={newSpellUpcast}
                     onChange={(event) => setNewSpellUpcast(event.target.value)}
                     placeholder="Extra por nivel: 1d6"
                     aria-label="Dados extra por nivel superior"
-                    className="rounded border border-white/10 bg-[#1c1a24] px-2 py-1.5 text-xs text-white"
+                    className="rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white"
                   />
                 </div>
                 <button
@@ -1122,7 +1122,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                       value={newFeatName}
                       onChange={(e) => setNewFeatName(e.target.value)}
                       placeholder="Nombre del dote homebrew..."
-                      className="flex-1 bg-[#1c1a24] text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
+                      className="flex-1 bg-transparent text-xs text-white px-2.5 py-1.5 rounded border border-white/10"
                     />
                     <button
                       type="button"
@@ -1137,7 +1137,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     value={newFeatDesc}
                     onChange={(e) => setNewFeatDesc(e.target.value)}
                     placeholder="Descripción de la regla mecánica..."
-                    className="w-full bg-[#1c1a24] text-xs text-gray-300 px-2.5 py-1 rounded border border-white/10"
+                    className="w-full bg-transparent text-xs text-gray-300 px-2.5 py-1 rounded border border-white/10"
                   />
                   <div className="flex items-center gap-2">
                     <label className="text-[10px] text-gray-400 uppercase font-bold" htmlFor="creator-feat-ability">Bono</label>
@@ -1145,7 +1145,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                       id="creator-feat-ability"
                       value={newFeatAbility}
                       onChange={(e) => setNewFeatAbility(e.target.value as AbilityCode)}
-                      className="bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                      className="bg-transparent text-xs text-white px-2 py-1 rounded border border-white/10"
                     >
                       {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as AbilityCode[]).map((code) => <option key={code} value={code}>{code}</option>)}
                     </select>
@@ -1155,7 +1155,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                       max="10"
                       value={newFeatBonus}
                       onChange={(e) => setNewFeatBonus(Number(e.target.value))}
-                      className="w-16 bg-[#1c1a24] text-xs text-white px-2 py-1 rounded border border-white/10"
+                      className="w-16 bg-transparent text-xs text-white px-2 py-1 rounded border border-white/10"
                       aria-label="Bono numérico de la dote"
                     />
                   </div>
@@ -1230,7 +1230,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
         </div>
 
         {/* Live Preview & Final Output (5 cols) */}
-        <div className="lg:col-span-5 bg-[#1c1a24] rounded-xl p-5 shadow-xl border border-white/5 flex flex-col gap-4">
+        <div className="lg:col-span-5 themed-panel bg-transparent rounded-xl p-5 shadow-xl border border-white/5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span className="font-runic text-[10px] text-gray-400 uppercase font-bold tracking-wider">
               Vista Previa Lista para Jugar

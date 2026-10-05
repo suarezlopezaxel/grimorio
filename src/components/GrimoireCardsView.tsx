@@ -107,7 +107,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="font-garamond text-2xl lg:text-3xl font-bold text-white tracking-wide flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-2xl">
+            <span className="material-symbols-outlined text-[var(--theme-primary)] text-2xl">
               style
             </span>
             <span>Grimorio de Tarjetas Tácticas</span>
@@ -137,7 +137,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
             setNewRollProficient(false);
             setIsHomebrewModalOpen(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs hover:brightness-110 shadow-md transition-all self-start md:self-auto cursor-pointer active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)] font-bold text-xs hover:brightness-110 shadow-md transition-all self-start md:self-auto cursor-pointer active:scale-95"
         >
           <span className="material-symbols-outlined text-base">add_circle</span>
           <span>+ Crear Tarjeta Homebrew</span>
@@ -145,7 +145,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 mb-6 bg-[#1c1a24] p-3 rounded-xl border border-white/5 shadow-md">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 mb-6 themed-panel bg-transparent p-3 rounded-xl border border-white/5 shadow-md">
         {/* Category Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
           {categories.map((cat) => {
@@ -160,7 +160,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-[var(--theme-secondary-container,#571bc1)] text-[var(--theme-on-secondary-container,#ffffff)] font-bold shadow-sm'
+                    ? 'bg-[var(--theme-secondary-container)] text-[var(--theme-on-secondary-container)] font-bold shadow-sm'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -184,20 +184,20 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filtrar por nombre o efecto..."
-            className="w-full bg-[#0f0d16] text-xs text-gray-200 pl-8 pr-3 py-2 rounded-lg border border-white/5 focus:outline-none focus:border-[var(--theme-primary,#fbbf24)]/50 transition-colors"
+            className="w-full bg-[var(--theme-surface-low)] text-xs text-gray-200 pl-8 pr-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none focus:border-[var(--theme-primary)]/50 transition-colors"
           />
         </div>
       </div>
 
       {/* Standard 5e Actions Banner if active */}
       {(selectedCategory === 'all' || selectedCategory === 'standard') && (
-        <div className="mb-6 bg-[#1c1a24] rounded-xl border border-white/5 p-4 shadow-lg">
+        <div className="mb-6 themed-panel bg-transparent rounded-xl border border-white/5 p-4 shadow-lg">
           <div
             onClick={() => setExpandedStandardActions(!expandedStandardActions)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-lg">
+              <span className="material-symbols-outlined text-[var(--theme-primary)] text-lg">
                 military_tech
               </span>
               <span className="font-garamond text-base text-white font-bold">
@@ -219,7 +219,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
               {STANDARD_5E_ACTIONS.map((action) => (
                 <div
                   key={action.name}
-                  className="p-3 rounded-lg bg-[#0f0d16] border border-white/5 flex flex-col gap-1"
+                  className="p-3 rounded-lg bg-[var(--theme-surface-low)] border border-[var(--theme-surface-high)] flex flex-col gap-1"
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -253,25 +253,25 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
           return (
             <div
               key={card.id}
-              className="bg-[#1c1a24] rounded-xl overflow-hidden border border-white/5 shadow-xl flex flex-col card-arcane-glow group"
+              className="themed-panel bg-transparent rounded-xl overflow-hidden border border-white/5 shadow-xl flex flex-col card-arcane-glow group"
             >
               {/* Card Illustration Banner */}
-              <div className="relative h-32 w-full overflow-hidden bg-gradient-to-t from-[#1c1a24] to-black">
+              <div className="relative h-32 w-full overflow-hidden bg-gradient-to-t from-[var(--theme-surface-low)] to-black">
                 <img
                   src={card.imageUrl || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80'}
                   alt={card.title}
                   className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1c1a24] via-[#1c1a24]/40 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[var(--theme-surface-low)] via-[var(--theme-surface-low)]/40 to-transparent"></div>
 
                 {/* Top Badges */}
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-runic font-bold uppercase tracking-wider shadow-sm border border-black/20 ${
                       isAttack
-                        ? 'bg-[var(--theme-primary,#fbbf24)] text-[#261a00]'
+                        ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)]'
                         : isSpell
-                        ? 'bg-[var(--theme-secondary-container,#571bc1)] text-[var(--theme-on-secondary-container,#e9ddff)]'
+                        ? 'bg-[var(--theme-secondary-container)] text-[var(--theme-on-secondary-container)]'
                         : isReaction
                         ? 'bg-red-500 text-white'
                         : isItem
@@ -282,7 +282,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     {card.category.toUpperCase()}
                   </span>
 
-                  <span className="bg-[#0f0d16]/80 backdrop-blur-xs text-gray-300 px-2 py-0.5 rounded text-[10px] font-mono border border-white/10">
+                  <span className="bg-[var(--theme-surface-low)]/80 backdrop-blur-xs text-gray-300 px-2 py-0.5 rounded text-[10px] font-mono border border-[var(--theme-surface-high)]">
                     {card.actionType}
                   </span>
                 </div>
@@ -301,14 +301,14 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
               {/* Card Body Specs Grid */}
               <div className="p-4 flex-1 flex flex-col justify-between gap-3">
                 {/* Tactical Stats Pill Row */}
-                <div className="grid grid-cols-3 gap-1.5 text-center bg-[#0f0d16] p-2 rounded-lg border border-white/5">
+                <div className="grid grid-cols-3 gap-1.5 text-center bg-[var(--theme-surface-low)] p-2 rounded-lg border border-[var(--theme-surface-high)]">
                   <div className="flex flex-col">
                     <span className="text-[9px] font-runic text-gray-500 uppercase">Alcance</span>
                     <span className="text-xs text-gray-200 font-bold truncate">{card.reach}</span>
                   </div>
                   <div className="flex flex-col border-x border-white/5">
                     <span className="text-[9px] font-runic text-gray-500 uppercase">Tirada / CD</span>
-                    <span className="text-xs text-[var(--theme-primary,#fbbf24)] font-bold">
+                    <span className="text-xs text-[var(--theme-primary)] font-bold">
                       {card.hitBonusOrDc}
                     </span>
                   </div>
@@ -321,14 +321,14 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 </div>
 
                 {/* Primary Damage / Effect Banner */}
-                <div className="flex items-center justify-between bg-[#211e28] px-3 py-2 rounded-lg border border-white/5">
+                <div className="flex items-center justify-between bg-[var(--theme-surface)] px-3 py-2 rounded-lg border border-[var(--theme-surface-high)]">
                   <span className="text-xs text-gray-400">Efecto / Daño:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-garamond text-base font-bold text-white">
                       {card.primaryDamageOrEffect}
                     </span>
                     {card.secondaryEffect && (
-                      <span className="text-[10px] text-[var(--theme-secondary,#d0bcff)] font-semibold">
+                      <span className="text-[10px] text-[var(--theme-secondary)] font-semibold">
                         ({card.secondaryEffect})
                       </span>
                     )}
@@ -360,8 +360,8 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                               key={rIdx}
                               className={`w-2.5 h-2.5 rounded-full ${
                                 !isUsed
-                                  ? 'bg-[var(--theme-primary,#fbbf24)] shadow-xs'
-                                  : 'bg-[#2b2932]'
+                                  ? 'bg-[var(--theme-primary)] shadow-xs'
+                                  : 'bg-[var(--theme-surface-high)]'
                               }`}
                             />
                           );
@@ -432,7 +432,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                         roll.count
                       );
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-secondary-container,#571bc1)] hover:bg-[var(--theme-secondary,#d0bcff)] text-white hover:text-black font-semibold text-xs transition-all shadow-sm ml-auto"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-secondary-container)] hover:bg-[var(--theme-secondary)] text-white hover:text-black font-semibold text-xs transition-all shadow-sm ml-auto"
                   >
                     <span className="material-symbols-outlined text-sm">casino</span>
                     <span>Tirar daño / Desplegar</span>
@@ -447,10 +447,10 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
       {/* Modal: Crear Tarjeta Homebrew */}
       {isHomebrewModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-[#1c1a24] border border-[#36333e] rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 shadow-2xl relative">
+          <div className="themed-panel bg-transparent border border-[var(--theme-surface-high)] rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-xl text-[var(--theme-primary,#fbbf24)]">
+                <span className="material-symbols-outlined text-xl text-[var(--theme-primary)]">
                   auto_fix_high
                 </span>
                 <h3 className="font-garamond text-xl font-bold text-white">
@@ -476,7 +476,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   placeholder="ej. Filo Umbrío de Selûne"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-[#0f0d16] text-sm text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-[var(--theme-primary,#fbbf24)]"
+                  className="w-full bg-[var(--theme-surface-low)] text-sm text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none focus:border-[var(--theme-primary)]"
                 />
               </div>
 
@@ -488,7 +488,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CardCategory)}
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   >
                     <option value="attack">Ataque</option>
                     <option value="spell">Conjuro</option>
@@ -506,7 +506,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   <select
                     value={newActionType}
                     onChange={(e) => setNewActionType(e.target.value as ActionType)}
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
                   >
                     <option value="Acción">Acción (1 Acción)</option>
                     <option value="Acción Adicional">Acción Adicional (Bonus)</option>
@@ -526,7 +526,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     value={newTypeBadge}
                     onChange={(e) => setNewTypeBadge(e.target.value)}
                     placeholder="ej. Evocación • Nivel 2"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -538,7 +538,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     value={newReach}
                     onChange={(e) => setNewReach(e.target.value)}
                     placeholder="ej. 60 ft o Cuerpo a Cuerpo"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
               </div>
@@ -553,7 +553,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     value={newBonus}
                     onChange={(e) => setNewBonus(e.target.value)}
                     placeholder="ej. +7 o CD 15 DES"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -565,7 +565,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     value={newDamage}
                     onChange={(e) => setNewDamage(e.target.value)}
                     placeholder="ej. 2d8 Necrótico"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
               </div>
@@ -580,7 +580,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     placeholder="1d8+3 (si difiere del efecto)"
                     pattern="\s*\d*d\d+(\s*[+-]\s*\d+)?\s*"
                     title="Usa una fórmula de daño como 1d8+3"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -588,7 +588,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   <select
                     value={newRollAbility}
                     onChange={(e) => setNewRollAbility(e.target.value as AbilityCode | '')}
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   >
                     <option value="">Usar modificador de la fórmula</option>
                     <option value="FUE">Fuerza</option>
@@ -615,7 +615,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     step="1"
                     value={newResourceMax}
                     onChange={(e) => setNewResourceMax(Math.max(0, Math.min(100, Math.trunc(Number(e.target.value) || 0))))}
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -625,7 +625,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     value={newResourceDesc}
                     onChange={(e) => setNewResourceDesc(e.target.value)}
                     placeholder="3 usos por descanso largo"
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   />
                 </div>
               </div>
@@ -636,7 +636,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   <select
                     value={newRecharge}
                     onChange={(e) => setNewRecharge(e.target.value)}
-                    className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                    className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   >
                     <option value="Descanso Corto">Descanso corto</option>
                     <option value="Descanso Largo">Descanso largo</option>
@@ -649,7 +649,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   type="checkbox"
                   checked={newConsumesResource}
                   onChange={(event) => setNewConsumesResource(event.target.checked)}
-                  className="accent-[var(--theme-primary,#fbbf24)]"
+                  className="accent-[var(--theme-primary)]"
                 />
                 Consumir un uso al usar
               </label>
@@ -663,7 +663,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="Detalla cómo funciona la acción o qué requisitos especiales exige..."
-                  className="w-full bg-[#0f0d16] text-xs text-white px-3 py-2 rounded-lg border border-white/10 focus:outline-none"
+                  className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                 />
               </div>
 
@@ -671,13 +671,13 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => { setIsHomebrewModalOpen(false); setEditingCardId(null); }}
-                  className="px-4 py-2 rounded-lg bg-[#211e28] text-gray-300 text-xs hover:bg-[#2b2932]"
+                  className="px-4 py-2 rounded-lg bg-[var(--theme-surface)] text-gray-300 text-xs hover:bg-[var(--theme-surface-high)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs hover:brightness-110 shadow-md"
+                  className="px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)] font-bold text-xs hover:brightness-110 shadow-md"
                 >
                   {editingCardId ? 'Guardar cambios' : 'Engarzar al Grimorio'}
                 </button>

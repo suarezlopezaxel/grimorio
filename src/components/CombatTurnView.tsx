@@ -131,8 +131,8 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
   };
 
   // Toggle a resource checkbox (e.g. Second Wind ☐ ☐)
-  const handleToggleResourceBox = (cardId: string, boxIndex: number, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleToggleResourceBox = (cardId: string, boxIndex: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const card = cards.find((item) => item.id === cardId);
     if (!card || !onUpdateCard) return;
     const used = card.resourceUsed || 0;
@@ -410,13 +410,13 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
       }
     >
       {/* Top Combat Header: Asalto, Iniciativa, Movimiento Restante & Botón Siguiente Turno */}
-      <div className="relative overflow-hidden rounded-xl bg-[#1c1a24] shadow-xl border border-white/5 p-4 lg:p-5 mb-6">
+      <div className="relative overflow-hidden rounded-xl themed-panel bg-transparent shadow-xl border border-white/5 p-4 lg:p-5 mb-6">
         <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[var(--theme-glow,rgba(87,27,193,0.2))] blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {/* Contador de Asalto */}
-            <div className="flex items-center gap-2.5 bg-[#0f0d16] px-3.5 py-1.5 rounded-lg border border-white/5 shadow-inner">
+            <div className="flex items-center gap-2.5 bg-[var(--theme-surface-low)] px-3.5 py-1.5 rounded-lg border border-white/5 shadow-inner">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Combate
               </span>
@@ -429,7 +429,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
             </div>
 
             {/* Iniciativa Score */}
-            <div className="flex items-center gap-2 bg-[#0f0d16] px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
+            <div className="flex items-center gap-2 bg-[var(--theme-surface-low)] px-3 py-1.5 rounded-lg border border-white/5 shadow-inner">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Iniciativa:
               </span>
@@ -441,7 +441,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
             {/* Postura y Concentración */}
             <button
               onClick={() => handleToggleCondition('prone')}
-              className="flex items-center gap-1.5 bg-[#211e28] hover:bg-[#2b2932] px-2.5 py-1.5 rounded text-gray-200 border border-white/5 text-xs transition-colors"
+              className="flex items-center gap-1.5 bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-hover)] px-2.5 py-1.5 rounded text-gray-200 border border-white/5 text-xs transition-colors"
             >
               <span
                 className={`w-2 h-2 rounded-full ${
@@ -562,7 +562,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         ).total}
       />
 
-      <section className="themed-panel mb-6 rounded-xl border border-red-400/20 bg-[#1c1a24] p-4" aria-label="Condiciones activas">
+      <section className="themed-panel mb-6 rounded-xl border border-red-400/20 bg-transparent p-4" aria-label="Condiciones activas">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-garamond text-lg font-bold text-white">Condiciones</h2>
           <span className="text-[10px] text-gray-400">
@@ -597,7 +597,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         </div>
       </section>
 
-      <section className="themed-panel mb-6 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20 bg-[#1c1a24] p-4" aria-label="Efectos activos">
+      <section className="themed-panel mb-6 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20 bg-transparent p-4" aria-label="Efectos activos">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-garamond text-lg font-bold text-white">Efectos activos</h2>
           <span className="text-[10px] text-gray-500">La duración avanza al pulsar Siguiente Turno</span>
@@ -705,7 +705,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
       </section>
 
       <section className="mb-6 grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-4" aria-label="Conjuros y espacios de conjuro">
-        <div className="bg-[#1c1a24] p-4 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20">
+        <div className="bg-transparent p-4 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20">
           <h2 className="font-garamond text-lg text-white font-bold mb-3">Conjuros</h2>
           {(character.spells || []).length === 0 ? (
             <p className="text-xs text-gray-400">No hay conjuros registrados en la hoja.</p>
@@ -813,7 +813,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
           )}
         </div>
 
-        <div className="bg-[#1c1a24] p-4 rounded-xl border border-white/10">
+        <div className="bg-transparent p-4 rounded-xl border border-white/10">
           <h2 className="font-garamond text-lg text-white font-bold mb-3">Espacios de conjuro</h2>
           <div className="flex flex-col gap-2">
             {character.spellSlots.map((slot, tierIndex) => (
@@ -845,7 +845,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         {/* COLUMNA 1: ACCIÓN (Color Carmesí / Rojo Vivo)        */}
         {/* ==================================================== */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-[#1c1a24] px-3.5 py-2 rounded-xl border border-red-500/30 shadow-md">
+          <div className="flex items-center justify-between bg-transparent px-3.5 py-2 rounded-xl border border-red-500/30 shadow-md">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
               <h3 className="font-garamond text-base text-white font-bold tracking-wide">
@@ -869,7 +869,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                   className={`p-4 rounded-xl border transition-all cursor-pointer relative group ${
                     isExpended
                       ? 'bg-[#15131b]/60 border-white/5 opacity-50 grayscale'
-                      : 'bg-[#1c1a24] border-red-500/20 hover:border-red-500/50 shadow-md hover:-translate-y-0.5'
+                      : 'bg-transparent border-red-500/20 hover:border-red-500/50 shadow-md hover:-translate-y-0.5'
                   }`}
                 >
                   {/* Etiqueta de Tipo de Acción */}
@@ -982,7 +982,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         {/* COLUMNA 2: ACCIÓN ADICIONAL (Color Violeta / Amatista)*/}
         {/* ==================================================== */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-[#1c1a24] px-3.5 py-2 rounded-xl border border-purple-500/30 shadow-md">
+          <div className="flex items-center justify-between bg-transparent px-3.5 py-2 rounded-xl border border-purple-500/30 shadow-md">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
               <h3 className="font-garamond text-base text-white font-bold tracking-wide">
@@ -1006,7 +1006,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                   className={`themed-panel p-4 rounded-xl border transition-all cursor-pointer relative group ${
                     isExpended
                       ? 'bg-[#15131b]/60 border-white/5 opacity-50 grayscale'
-                      : 'bg-[#1c1a24] border-purple-500/20 hover:border-purple-500/50 shadow-md hover:-translate-y-0.5'
+                      : 'bg-transparent border-purple-500/20 hover:border-purple-500/50 shadow-md hover:-translate-y-0.5'
                   }`}
                 >
                   {/* Etiqueta de Tipo de Acción */}
@@ -1060,10 +1060,10 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                           <Pip
                             key={`box-${card.id}-${bIdx}`}
                             used={checked}
-                            onClick={(e) => {
+                          onClick={() => {
                               if (!checked && onTriggerBurst) onTriggerBurst();
-                              handleToggleResourceBox(card.id, bIdx, e);
-                            }}
+                              handleToggleResourceBox(card.id, bIdx);
+                          }}
                           />
                         ))}
                       </div>
@@ -1111,7 +1111,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         {/* COLUMNA 3: REACCIÓN (Color Ámbar / Oro / Azul)       */}
         {/* ==================================================== */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-[#1c1a24] px-3.5 py-2 rounded-xl border border-amber-500/30 shadow-md">
+          <div className="flex items-center justify-between bg-transparent px-3.5 py-2 rounded-xl border border-amber-500/30 shadow-md">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span>
               <h3 className="font-garamond text-base text-white font-bold tracking-wide">
@@ -1135,7 +1135,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                   className={`p-4 rounded-xl border transition-all cursor-pointer relative group ${
                     isExpended
                       ? 'bg-[#15131b]/60 border-white/5 opacity-50 grayscale'
-                      : 'bg-[#1c1a24] border-amber-500/20 hover:border-amber-500/50 shadow-md hover:-translate-y-0.5'
+                      : 'bg-transparent border-amber-500/20 hover:border-amber-500/50 shadow-md hover:-translate-y-0.5'
                   }`}
                 >
                   {/* Etiqueta de Reacción */}
@@ -1213,7 +1213,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         {/* COLUMNA 4: MOVIMIENTO (Color Verde Esmeralda / Cian) */}
         {/* ==================================================== */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between bg-[#1c1a24] px-3.5 py-2 rounded-xl border border-emerald-500/30 shadow-md">
+          <div className="flex items-center justify-between bg-transparent px-3.5 py-2 rounded-xl border border-emerald-500/30 shadow-md">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
               <h3 className="font-garamond text-base text-white font-bold tracking-wide">
@@ -1226,7 +1226,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
           </div>
 
           {/* Medidor de Movimiento Táctico Interactivo */}
-          <div className="bg-[#1c1a24] p-4 rounded-xl border border-emerald-500/20 shadow-md">
+          <div className="bg-transparent p-4 rounded-xl border border-emerald-500/20 shadow-md">
             <div className="flex items-center justify-between mb-2">
               <span className="font-runic text-xs text-gray-300 font-bold uppercase">
                 Pies Restantes
@@ -1304,7 +1304,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               return (
                 <div
                   key={card.id}
-                  className="p-4 rounded-xl bg-[#1c1a24] border border-emerald-500/20 hover:border-emerald-500/50 shadow-md transition-all"
+                  className="p-4 rounded-xl bg-transparent border border-emerald-500/20 hover:border-emerald-500/50 shadow-md transition-all"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">

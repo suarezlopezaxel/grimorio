@@ -1,618 +1,313 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  CharacterSheet,
-  CombatRoundState,
-  TacticalCard,
-  ScreenId,
-  ClassKey,
-  ElementAffinity,
-  AppSettings,
-  DiceRollResult,
-  DiceRollOutcome,
-  RollKind,
-  Ability,
-  ConditionId,
-  ConcentrationState,
-} from './types';
-import { CLASS_THEMES, ELEMENT_ACCENTS } from './themes';
-import {
-  DEFAULT_CHARACTER,
-  DEFAULT_COMBAT_STATE,
-  DEFAULT_TACTICAL_CARDS,
-} from './data/defaultData';
-import {
-  playDiceRollSound,
-  playNat20Sound,
-  playNat1Sound,
-  playSpellCastSound,
-  playHealSound,
-} from './utils/audio';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CharacterSheet, ClassId, ElementalAffinity } from './types/character';
+import { DEFAULT_CHARACTERS } from './data/defaultCharacters';
+import { CLASS_THEMES } from './data/classThemes';
+import { Sidebar, ActiveTab } from './components/layout/Sidebar';
+import { Header } from './components/layout/Header';
+import { ClassResonanceBanner } from './components/layout/ClassResonanceBanner';
+import { CharacterSheetView } from './components/views/CharacterSheetView';
+import { CombatTurnView } from './components/views/CombatTurnView';
+import { GrimoireCardsView } from './components/views/GrimoireCardsView';
+import { CharacterCreatorView } from './components/views/CharacterCreatorView';
+import { FxLayer } from './components/fx/FxLayer';
+import { ClassFrameDecorations } from './components/fx/ClassFrameDecorations';
+import { DiceTrayModal } from './components/modals/DiceTrayModal';
+import { ManageSheetModal } from './components/modals/ManageSheetModal';
+import { ClassSelectorModal } from './components/modals/ClassSelectorModal';
+import { LevelUpDialog } from './components/modals/LevelUpDialog';
+import { ShortRestDialog } from './components/modals/ShortRestDialog';
 
-import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
-import { CharacterSheetView } from './components/CharacterSheetView';
-import { CombatTurnView } from './components/CombatTurnView';
-import { GrimoireCardsView } from './components/GrimoireCardsView';
-import { CharacterCreatorView } from './components/CharacterCreatorView';
-import { DiceTrayModal } from './components/DiceTrayModal';
-import { ManageSheetModal } from './components/ManageSheetModal';
-import { ClassResonanceSelector } from './components/ClassResonanceSelector';
-import { usePersistentState } from './hooks/usePersistentState';
-import { getHitDicePool, longRestHitDiceRecovery, shortRestHeal } from './lib/hitDice';
-import { ShortRestDialog } from './components/ShortRestDialog';
-import { getActiveConcentration } from './lib/concentration';
-import { parseDiceExpression } from './lib/critical';
-import { undoCardResourceUse, useCardResource } from './lib/cardResources';
-import { effectiveMaxHitPoints, resolveRollModeWithExhaustion } from './lib/conditions';
-import { normalizeCharacterSheet, restoreAppSettings } from './lib/persistence';
-import { removeConcentrationEffects } from './lib/activeEffects';
-import { rechargeClassResources } from './lib/classProgression';
+const STORAGE_KEY = 'grimorio_arcanum_active_character_v5';
 
-import { ThemedRoot } from './components/ThemedParts';
+export default function App() {
+  // Active Character State with Undo stack
+  const [character, setCharacter] = useState<CharacterSheet>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return DEFAULT_CHARACTERS[0];
+  });
 
-const PERSISTENCE_VERSION = 1;
+  const [undoStack, setUndoStack] = useState<CharacterSheet[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('sheet');
+  const [isSavedJustNow, setIsSavedJustNow] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-interface UndoSnapshot {
-  character: CharacterSheet;
-  cards: TacticalCard[];
-  combat: CombatRoundState;
-}
+  // Modals
+  const [diceTrayOpen, setDiceTrayOpen] = useState(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [classSelectorModalOpen, setClassSelectorModalOpen] = useState(false);
+  const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
+  const [shortRestModalOpen, setShortRestModalOpen] = useState(false);
 
-function restoreRollHistory(rolls: DiceRollResult[]): DiceRollResult[] {
-  return rolls.map((roll) => ({
-    ...roll,
-    timestamp: new Date(String(roll.timestamp)),
-  }));
-}
+  // Visual FX Triggers
+  const [isShaking, setIsShaking] = useState(false);
+  const [stealthActive, setStealthActive] = useState(false);
+  const [auraActive, setAuraActive] = useState(false);
 
-export function App() {
-  // Navigation & Class Tuning State
-  const [currentScreen, setCurrentScreen] = useState<ScreenId>('hoja-de-personaje');
-  const [currentElement, setCurrentElement] = useState<ElementAffinity>('neutral');
+  const currentTheme = CLASS_THEMES[character.classId] || CLASS_THEMES.mago;
 
-  // Core Applet State
-  const [character, setCharacter, clearCharacter, characterSaveStatus] = usePersistentState<CharacterSheet>(
-    'grimorio:character',
-    DEFAULT_CHARACTER,
-    PERSISTENCE_VERSION,
-    normalizeCharacterSheet,
-  );
-  const [currentClass, setCurrentClass] = useState<ClassKey>(() => character.classKey ?? 'mago');
-
-  const currentTheme = CLASS_THEMES[currentClass];
-  const [combatState, setCombatState, clearCombatState, combatSaveStatus] = usePersistentState<CombatRoundState>(
-    'grimorio:combat',
-    DEFAULT_COMBAT_STATE,
-    PERSISTENCE_VERSION,
-  );
-  const [cards, setCards, clearCards, cardsSaveStatus] = usePersistentState<TacticalCard[]>(
-    'grimorio:cards',
-    DEFAULT_TACTICAL_CARDS,
-    PERSISTENCE_VERSION,
-  );
-  const [undoHistory, setUndoHistory] = useState<UndoSnapshot[]>([]);
-  const [burstCount, setBurstCount] = useState(0);
-  const triggerBurst = () => setBurstCount(b => b + 1);
-  const [settings, setSettings, , settingsSaveStatus] = usePersistentState<AppSettings>(
-    'grimorio:settings',
-    { autoTrackActions: false },
-    PERSISTENCE_VERSION,
-    restoreAppSettings,
-  );
-
-  // Dice Rolls
-  const [latestRoll, setLatestRoll] = useState<DiceRollResult | null>(null);
-  const [isDiceTrayOpen, setIsDiceTrayOpen] = useState<boolean>(false);
-  const [rollHistory, setRollHistory, clearRollHistory, rollHistorySaveStatus] = usePersistentState<DiceRollResult[]>(
-    'grimorio:rollHistory',
-    [],
-    PERSISTENCE_VERSION,
-    restoreRollHistory,
-  );
-
-  // Modals & Drawers
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-  const [isShortRestDialogOpen, setIsShortRestDialogOpen] = useState(false);
-  const [shortRestDiceToSpend, setShortRestDiceToSpend] = useState(0);
-  const [bannerMessage, setBannerMessage] = useState<string | null>(null);
-  const recordUndo = useCallback(() => {
-    setUndoHistory((previous) => [...previous, { character, cards, combat: combatState }].slice(-30));
-  }, [character, cards, combatState]);
-  const storageErrorNotified = useRef(false);
-  const persistenceStatuses = [characterSaveStatus, combatSaveStatus, cardsSaveStatus, rollHistorySaveStatus, settingsSaveStatus];
-  const hasPersistenceError = persistenceStatuses.includes('error');
-  const isPersistenceSaving = persistenceStatuses.includes('saving');
-  const isPersistenceSaved = persistenceStatuses.includes('saved') && !hasPersistenceError;
-
-  // Dynamic CSS Variables sync based on selected Class & Element
-  // Compatibilidad: algunos componentes legacy aún usan estas vars.
+  // Sync all theme palette variables to the document root (camelCase -> kebab-case)
   useEffect(() => {
-    const theme = CLASS_THEMES[currentClass] || CLASS_THEMES.mago;
-    const elem = ELEMENT_ACCENTS[currentElement];
-
     const root = document.documentElement;
-    root.style.setProperty('--theme-primary', currentElement !== 'neutral' ? elem.color : theme.colors.primary);
-    root.style.setProperty('--theme-primary-container', theme.colors.primaryContainer);
-    root.style.setProperty('--theme-on-primary-container', theme.colors.onPrimaryContainer);
-    root.style.setProperty('--theme-secondary', theme.colors.secondary);
-    root.style.setProperty('--theme-secondary-container', theme.colors.secondaryContainer);
-    root.style.setProperty('--theme-on-secondary-container', theme.colors.onSecondaryContainer);
-    root.style.setProperty('--theme-glow', currentElement !== 'neutral' ? elem.glow : theme.colors.borderGlow);
-    root.style.setProperty('--theme-accent', currentElement !== 'neutral' ? elem.color : theme.colors.accent);
-  }, [currentClass, currentElement]);
+    Object.entries(currentTheme.palette).forEach(([key, value]) => {
+      const cssVar = key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+      root.style.setProperty(`--theme-${cssVar}`, value as string);
+    });
+  }, [currentTheme]);
 
-  const handleSelectClass = (classKey: ClassKey) => {
-    setCurrentClass(classKey);
-    setCharacter((prev) => ({ ...prev, classKey }));
-  };
+  // Update Character with undo push
+  const updateCharacter = useCallback((updated: CharacterSheet) => {
+    setUndoStack((prev) => [...prev.slice(-15), character]);
+    setCharacter(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // storage unavailable
+    }
+  }, [character]);
 
-  const updateConcentration = (concentration: ConcentrationState | null) => {
-    setCombatState((prev) => ({
-      ...prev,
-      concentration,
-      concentrationSpell: concentration?.spellName ?? null,
-      activeEffects: concentration
-        ? prev.activeEffects
-        : removeConcentrationEffects(prev.activeEffects ?? []),
-    }));
-  };
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setCharacter(last);
+  }, [undoStack]);
 
-  const showBanner = useCallback((msg: string) => {
-    setBannerMessage(msg);
-    setTimeout(() => {
-      setBannerMessage(null);
-    }, 3000);
-  }, []);
-
-  const undoLastAction = useCallback(() => {
-    const snapshot = undoHistory[undoHistory.length - 1];
-    if (!snapshot) return;
-    setCharacter(snapshot.character);
-    setCards(snapshot.cards);
-    setCombatState(snapshot.combat);
-    setUndoHistory((previous) => previous.slice(0, -1));
-    showBanner('Último cambio deshecho.');
-  }, [undoHistory, setCharacter, setCards, setCombatState, showBanner]);
-
+  // Keyboard shortcut Ctrl+Z
   useEffect(() => {
-    const handleUndoShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-        const target = event.target as HTMLElement | null;
-        if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return;
-        event.preventDefault();
-        undoLastAction();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
       }
     };
-    window.addEventListener('keydown', handleUndoShortcut);
-    return () => window.removeEventListener('keydown', handleUndoShortcut);
-  }, [undoLastAction]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo]);
 
-  const handleStorageError = useCallback(() => {
-    if (storageErrorNotified.current) return;
-    storageErrorNotified.current = true;
-    setBannerMessage('No se pudo acceder al almacenamiento local; los cambios siguen disponibles en esta sesión.');
-    setTimeout(() => setBannerMessage(null), 3000);
-  }, []);
-
-  useEffect(() => {
-    if (hasPersistenceError) handleStorageError();
-  }, [handleStorageError, hasPersistenceError]);
-
-  // Roll Dice Engine
-  const handleRollDice = useCallback(
-    (
-      label: string,
-      modifier: number,
-      subtext?: string,
-      sides = 20,
-      count = 1,
-      advantageMode: 'normal' | 'advantage' | 'disadvantage' = 'normal',
-      formula?: string,
-      isCriticalDamage = false,
-      rollKind?: RollKind,
-      ability?: Ability,
-    ): DiceRollOutcome => {
-      playDiceRollSound();
-      const storedConditions = combatState.conditions ?? [];
-      const activeConditions: ConditionId[] = !combatState.isStanding && !storedConditions.includes('prone')
-        ? [...storedConditions, 'prone']
-        : storedConditions;
-      const conditionResolution = rollKind && sides === 20 && !formula
-        ? resolveRollModeWithExhaustion(
-          advantageMode,
-          activeConditions,
-          rollKind,
-          ability,
-          character.exhaustionLevel ?? 0,
-        )
-        : { mode: advantageMode, reasons: [], autoFailed: false };
-      const resolvedMode = conditionResolution.mode;
-      const rollSubtext = [...(subtext ? [subtext] : []), ...conditionResolution.reasons].join(' · ');
-      const parsedFormula = formula ? parseDiceExpression(formula) : null;
-      const formulaRolls = parsedFormula?.dice.flatMap((term) => (
-        Array.from(
-          { length: term.count },
-          () => term.sign * (Math.floor(Math.random() * term.sides) + 1),
-        )
-      ));
-      const rollCount = !formula && sides === 20 && count === 1 && resolvedMode !== 'normal'
-        ? 2
-        : count;
-      const rolls = conditionResolution.autoFailed
-        ? []
-        : formulaRolls ?? Array.from({ length: rollCount }, () => Math.floor(Math.random() * sides) + 1);
-      const d20 = conditionResolution.autoFailed
-        ? 0
-        : resolvedMode === 'advantage'
-        ? Math.max(...rolls)
-        : resolvedMode === 'disadvantage'
-          ? Math.min(...rolls)
-          : rolls.reduce((sum, value) => sum + value, 0);
-      const finalModifier = parsedFormula?.modifier ?? modifier;
-      const total = conditionResolution.autoFailed ? 0 : d20 + finalModifier;
-      const isSingleD20 = parsedFormula
-        ? parsedFormula.dice.length === 1
-          && parsedFormula.dice[0].count === 1
-          && parsedFormula.dice[0].sides === 20
-          && parsedFormula.dice[0].sign === 1
-        : sides === 20 && count === 1;
-      const natural = isSingleD20
-        ? resolvedMode === 'advantage'
-          ? Math.max(...rolls)
-          : resolvedMode === 'disadvantage'
-            ? Math.min(...rolls)
-            : rolls[0] ?? 0
-        : 0;
-      const isNat20 = isSingleD20 && natural === 20;
-      const isNat1 = isSingleD20 && natural === 1;
-
-      if (isNat20) {
-        setTimeout(playNat20Sound, 150);
-      } else if (isNat1) {
-        setTimeout(playNat1Sound, 150);
-      }
-
-      const result: DiceRollResult = {
-        id: `roll-${Date.now()}`,
-        title: label,
-        d20,
-        natural,
-        modifier: finalModifier,
-        total,
-        isNat20,
-        isNat1,
-        subtext: rollSubtext,
-        timestamp: new Date(),
-        diceSides: sides,
-        diceCount: parsedFormula
-          ? parsedFormula.dice.reduce((sum, term) => sum + term.count, 0)
-          : count,
-        advantageMode: resolvedMode,
-        diceFormula: formula,
-        isCriticalDamage,
-        autoFailed: conditionResolution.autoFailed,
-      };
-
-      setLatestRoll(result);
-      setRollHistory((prev) => [result, ...prev.slice(0, 19)]);
-      setIsDiceTrayOpen(true);
-      return { natural, total, autoFailed: conditionResolution.autoFailed };
-    },
-    [character.exhaustionLevel, combatState.conditions]
-  );
-
-  // Quick d20 roll from header
-  const handleQuickRoll = () => {
-    handleRollDice('Tirada Rápida d20', 0, 'Sin modificador');
+  const handleSaveSheet = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(character));
+      setIsSavedJustNow(true);
+      setTimeout(() => setIsSavedJustNow(false), 2000);
+    } catch {
+      // handle error
+    }
   };
 
-  // Resting Handlers
-  const handleShortRest = () => {
-    setShortRestDiceToSpend(0);
-    setIsShortRestDialogOpen(true);
+  const handleTriggerShake = () => {
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 600);
   };
 
-  const completeShortRest = () => {
-    recordUndo();
-    const pool = getHitDicePool(character);
-    const diceCount = Math.max(0, Math.min(pool.remaining, shortRestDiceToSpend));
-    const conMod = character.abilities.CON.modifier;
-    const rolls = Array.from({ length: diceCount }, (_, index) => (
-      handleRollDice(
-        `Descanso corto: dado ${index + 1}/${diceCount}`,
-        conMod,
-        `1d${pool.dieSize} + CON (${conMod >= 0 ? '+' : ''}${conMod})`,
-        pool.dieSize,
-        1,
-      ).natural
-    ));
-    const healing = shortRestHeal(rolls, conMod);
-    if (healing > 0) playHealSound();
-    setCharacter((prev) => {
-      const currentPool = getHitDicePool(prev);
-      return {
-        ...prev,
-        currentHp: Math.min(effectiveMaxHitPoints(prev.maxHp, prev.exhaustionLevel ?? 0), prev.currentHp + healing),
-        hitDicePool: {
-          ...currentPool,
-          remaining: Math.max(0, currentPool.remaining - diceCount),
-        },
-        classResources: rechargeClassResources(prev.classResources, 'short'),
-      };
+  const handleTriggerAuraPulse = () => {
+    setAuraActive(true);
+    setTimeout(() => setAuraActive(false), 2000);
+  };
+
+  const handleLevelUpConfirm = (newLevel: number, hpIncrease: number) => {
+    const profBonus = Math.floor((newLevel - 1) / 4) + 2;
+    updateCharacter({
+      ...character,
+      level: newLevel,
+      proficiencyBonus: profBonus,
+      hitPoints: {
+        ...character.hitPoints,
+        max: character.hitPoints.max + hpIncrease,
+        current: character.hitPoints.current + hpIncrease,
+      },
+      hitDice: {
+        ...character.hitDice,
+        max: newLevel,
+        current: character.hitDice.current + 1,
+      },
     });
-    setCards((prev) => prev.map((card) => (
-      card.recharge === 'Descanso Corto'
-        ? { ...card, resourceUsed: 0, isExpended: false }
-        : card
-    )));
-    setIsShortRestDialogOpen(false);
-    showBanner(`Descanso corto completado: ${healing} PG recuperados y recursos breves restaurados.`);
   };
 
-  const handleLongRest = () => {
-    recordUndo();
-    playHealSound();
-    setCharacter((prev) => ({
-      ...prev,
-      currentHp: effectiveMaxHitPoints(prev.maxHp, prev.exhaustionLevel ?? 0),
-      tempHp: 0,
-      deathSaves: { successes: 0, failures: 0 },
-      spellSlots: prev.spellSlots.map((s) => ({ ...s, current: s.max })),
-      hitDicePool: (() => {
-        const pool = getHitDicePool(prev);
-        return {
-          ...pool,
-          remaining: Math.min(pool.total, pool.remaining + longRestHitDiceRecovery(pool.total)),
-        };
-      })(),
-      classResources: rechargeClassResources(prev.classResources, 'long'),
-    }));
-    setCombatState((prev) => ({
-      ...prev,
-      round: 1,
-      remainingMovement: prev.maxMovement,
-      actionUsed: false,
-      bonusActionUsed: false,
-      reactionUsed: false,
-    }));
-    setCards((prev) => prev.map((card) => (
-      card.recharge === 'Descanso Corto' || card.recharge === 'Descanso Largo'
-        ? { ...card, resourceUsed: 0, isExpended: false }
-        : card
-    )));
-    showBanner('Descanso Largo completado: Vitalidad al 100%, ranuras de conjuro restauradas.');
-  };
-
-  // Card Handlers
-  const handleAddCard = (newCard: TacticalCard) => {
-    playSpellCastSound();
-    const existingCard = cards.find((card) => card.id === newCard.id);
-    if (existingCard) {
-      setCards((prev) => prev.map((card) => card.id === newCard.id
-        ? { ...newCard, resourceUsed: existingCard.resourceUsed, isExpended: existingCard.isExpended }
-        : card));
-      showBanner(`Tarjeta "${newCard.title}" actualizada.`);
-    } else {
-      setCards((prev) => [newCard, ...prev]);
-      showBanner(`Tarjeta "${newCard.title}" añadida al Grimorio.`);
-    }
-  };
-
-  const handleDeleteCard = (cardId: string) => {
-    recordUndo();
-    setCards((prev) => prev.filter((c) => c.id !== cardId));
-    showBanner('Tarjeta eliminada del grimorio.');
-  };
-
-  const handleUseCard = (cardId: string): boolean => {
-    const card = cards.find((item) => item.id === cardId);
-    if (!card) return false;
-
-    const result = useCardResource(card);
-    if (!result.allowed) {
-      const confirmed = window.confirm(`"${card.title}" no tiene usos disponibles. ¿Quieres usarla de todos modos?`);
-      if (!confirmed) return false;
-      const confirmedUse = useCardResource(card, true);
-      if (!confirmedUse.allowed) return false;
-      if (card.consumesResource && (card.resourceMax ?? 0) > 0) recordUndo();
-      setCards((prev) => prev.map((item) => item.id === cardId
-        ? { ...item, resourceUsed: confirmedUse.resourceUsed }
-        : item));
-      return true;
-    }
-
-    if (card.consumesResource && (card.resourceMax ?? 0) > 0) {
-      recordUndo();
-      setCards((prev) => prev.map((item) => item.id === cardId
-        ? { ...item, resourceUsed: result.resourceUsed }
-        : item));
-    }
-    return true;
-  };
-
-  const handleUndoCardUse = (cardId: string) => {
-    setCards((prev) => prev.map((card) => card.id === cardId
-      ? { ...card, resourceUsed: undoCardResourceUse(card) }
-      : card));
-  };
-
-  // Character Created
-  const handleCharacterCreated = (newChar: CharacterSheet, classKey: ClassKey) => {
-    setUndoHistory([]);
-    setCharacter(normalizeCharacterSheet(newChar));
-    setCurrentClass(classKey);
-    setCurrentScreen('hoja-de-personaje');
-    showBanner(`¡Héroe ${newChar.name} forjado con éxito!`);
+  const handleShortRestHealing = (hpRegained: number, diceSpent: number) => {
+    updateCharacter({
+      ...character,
+      hitPoints: {
+        ...character.hitPoints,
+        current: Math.min(character.hitPoints.max, character.hitPoints.current + hpRegained),
+      },
+      hitDice: {
+        ...character.hitDice,
+        current: Math.max(0, character.hitDice.current - diceSpent),
+      },
+    });
   };
 
   return (
-    <ThemedRoot cls={currentClass} element={currentElement} state="default" burst={burstCount}>
-      <div
-        className="min-h-screen bg-transparent text-[#e6e0ee] flex"
-      >
-      {/* Notification Toast */}
-      {bannerMessage && (
-        <div className="fixed top-24 right-4 z-50 bg-[#1c1a24] text-white px-4 py-2.5 rounded-lg border border-[var(--theme-primary,#fbbf24)] shadow-2xl flex items-center gap-2 font-medium text-xs animate-bounce">
-          <span className="material-symbols-outlined text-[var(--theme-primary,#fbbf24)] text-base">
-            auto_awesome
-          </span>
-          <span>{bannerMessage}</span>
+    <div
+      className={`min-h-screen relative text-zinc-100 transition-colors duration-500 overflow-x-hidden bg-class-${character.classId} ${
+        isShaking ? 'shake-active' : ''
+      } ${stealthActive ? 'stealth-shadows' : ''}`}
+    >
+      {/* Background Weather / Particles / Vignette FX Engine */}
+      <FxLayer
+        classId={character.classId}
+        isShaking={isShaking}
+        isStealth={stealthActive}
+        isRaging={character.classResources.barbarian?.isRaging ?? false}
+        auraActive={auraActive}
+      />
+
+      {/* Class Thematic SVG Borders & Corner Ornaments */}
+      <ClassFrameDecorations classId={character.classId} />
+
+      {/* Desktop Fixed Sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          onSaveSheet={handleSaveSheet}
+          onOpenManageModal={() => setManageModalOpen(true)}
+          onOpenNewCharacter={() => setActiveTab('creator')}
+          isSavedJustNow={isSavedJustNow}
+          character={character}
+        />
+      </div>
+
+      {/* Mobile Drawer Sidebar */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <div className="relative z-50">
+            <Sidebar
+              activeTab={activeTab}
+              onSelectTab={(tab) => {
+                setActiveTab(tab);
+                setMobileSidebarOpen(false);
+              }}
+              onSaveSheet={handleSaveSheet}
+              onOpenManageModal={() => {
+                setManageModalOpen(true);
+                setMobileSidebarOpen(false);
+              }}
+              onOpenNewCharacter={() => {
+                setActiveTab('creator');
+                setMobileSidebarOpen(false);
+              }}
+              isSavedJustNow={isSavedJustNow}
+              character={character}
+            />
+          </div>
         </div>
       )}
 
-      {/* Persistent Left Sidebar */}
-      <Sidebar
-        currentScreen={currentScreen}
-        onNavigate={setCurrentScreen}
-        currentClass={currentClass}
-        onSelectClass={handleSelectClass}
-        onSaveSheet={() => setIsManageModalOpen(true)}
-        onOpenLoadModal={() => setIsManageModalOpen(true)}
-        onNewSheet={() => setCurrentScreen('creador-de-personaje')}
-        isMobileOpen={isMobileMenuOpen}
-        onCloseMobile={() => setIsMobileMenuOpen(false)}
-      />
-
-      {/* Main Container */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
-        {/* Fixed Header */}
+      {/* Main Content Area (Offset by 288px on lg screens) */}
+      <div className="lg:pl-72 flex flex-col min-h-screen relative z-10">
+        {/* Top Header */}
         <Header
           character={character}
-          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
-          onTriggerQuickRoll={handleQuickRoll}
-          onSaveSheet={() => setIsManageModalOpen(true)}
-          onOpenLoadModal={() => setIsManageModalOpen(true)}
-          onNewSheet={() => setCurrentScreen('creador-de-personaje')}
-          onUndo={undoLastAction}
-          canUndo={undoHistory.length > 0}
+          onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          onUndo={handleUndo}
+          canUndo={undoStack.length > 0}
+          onSaveSheet={handleSaveSheet}
+          onOpenManageModal={() => setManageModalOpen(true)}
+          onOpenNewCharacter={() => setActiveTab('creator')}
+          onOpenDiceTray={() => setDiceTrayOpen(true)}
         />
 
-        {/* Dynamic Main View Area */}
-        <main className="flex-1 pt-24 px-4 lg:px-8 max-w-7xl w-full mx-auto">
-          <div aria-live="polite" className="h-4 text-right text-[10px] text-gray-400">
-            {isPersistenceSaving ? 'Guardando…' : isPersistenceSaved ? 'Guardado' : ''}
-          </div>
-          <ClassResonanceSelector
-            currentClass={currentClass}
-            onSelectClass={handleSelectClass}
-            currentElement={currentElement}
-            onSelectElement={setCurrentElement}
-            onSaveSheet={() => setIsManageModalOpen(true)}
-            onOpenLoadModal={() => setIsManageModalOpen(true)}
-            onNewSheet={() => setCurrentScreen('creador-de-personaje')}
+        {/* Content Container */}
+        <main className="flex-1 px-4 md:px-8 py-6 max-w-7xl w-full mx-auto">
+          {/* Class Resonance & Profile Banner */}
+          <ClassResonanceBanner
+            character={character}
+            onUpdateClass={(classId: ClassId) => updateCharacter({ ...character, classId })}
+            onUpdateElement={(elementalAffinity: ElementalAffinity) =>
+              updateCharacter({ ...character, elementalAffinity })
+            }
+            onSaveSheet={handleSaveSheet}
+            onOpenManageModal={() => setManageModalOpen(true)}
+            onOpenNewCharacter={() => setActiveTab('creator')}
+            onOpenClassSelectorModal={() => setClassSelectorModalOpen(true)}
           />
-          {/* Screen Routing */}
-          {currentScreen === 'hoja-de-personaje' && (
+
+          {/* Active View */}
+          {activeTab === 'sheet' && (
             <CharacterSheetView
               character={character}
-              activeConditions={combatState.conditions ?? (combatState.isStanding ? [] : ['prone'])}
-              concentration={getActiveConcentration(combatState)}
-              onConcentrationChange={updateConcentration}
-              onUpdateCharacter={setCharacter}
-              onRollDice={handleRollDice}
-              onShortRest={handleShortRest}
-              onLongRest={handleLongRest}
-              onBeforeUndoableAction={recordUndo}
-              onNotify={showBanner}
-              onTriggerBurst={triggerBurst}
+              onUpdate={updateCharacter}
+              onOpenDiceTray={() => setDiceTrayOpen(true)}
+              onOpenLevelUp={() => setLevelUpModalOpen(true)}
+              onOpenShortRest={() => setShortRestModalOpen(true)}
+              onTriggerShake={handleTriggerShake}
+              onTriggerAuraPulse={handleTriggerAuraPulse}
+              onToggleStealthMode={(active) => setStealthActive(active)}
             />
           )}
 
-          {currentScreen === 'turno-de-combate' && (
+          {activeTab === 'combat' && (
             <CombatTurnView
-              combatState={combatState}
               character={character}
-              cards={cards}
-              settings={settings}
-              onSettingsChange={setSettings}
-              onUpdateCombat={setCombatState}
-              onUpdateCharacter={setCharacter}
-              onUpdateCard={(cardId, updates) => {
-                setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, ...updates } : c)));
-              }}
-              onUseCard={handleUseCard}
-              onUndoCardUse={handleUndoCardUse}
-              onRollDice={handleRollDice}
-              onShortRest={handleShortRest}
-              onLongRest={handleLongRest}
-              onNotify={showBanner}
-              onBeforeUndoableAction={recordUndo}
-              onTriggerBurst={triggerBurst}
+              onUpdate={updateCharacter}
+              onOpenDiceTray={() => setDiceTrayOpen(true)}
             />
           )}
 
-          {currentScreen === 'grimorio-de-tarjetas' && (
+          {activeTab === 'grimoire' && (
             <GrimoireCardsView
               character={character}
-              cards={cards}
-              onAddCard={handleAddCard}
-              onDeleteCard={handleDeleteCard}
-              onUseCard={handleUseCard}
-              onUndoCardUse={handleUndoCardUse}
-              onRollDice={handleRollDice}
+              onUpdate={updateCharacter}
+              onOpenDiceTray={() => setDiceTrayOpen(true)}
             />
           )}
 
-          {currentScreen === 'creador-de-personaje' && (
+          {activeTab === 'creator' && (
             <CharacterCreatorView
-              onCharacterCreated={handleCharacterCreated}
-              onCancel={() => setCurrentScreen('hoja-de-personaje')}
+              onComplete={(newSheet) => {
+                updateCharacter(newSheet);
+                setActiveTab('sheet');
+              }}
+              onCancel={() => setActiveTab('sheet')}
             />
           )}
         </main>
       </div>
 
-      {/* Floating HUD: Dice Tray */}
+      {/* Modals */}
       <DiceTrayModal
-        latestRoll={latestRoll}
-        isOpen={isDiceTrayOpen}
-        onClose={() => setIsDiceTrayOpen(false)}
-        rollHistory={rollHistory}
-        onRollDice={handleRollDice}
+        isOpen={diceTrayOpen}
+        onClose={() => setDiceTrayOpen(false)}
       />
 
-      {isShortRestDialogOpen && (
-        <ShortRestDialog
-          hitDicePool={getHitDicePool(character)}
-          diceToSpend={shortRestDiceToSpend}
-          onDiceToSpendChange={(count) => setShortRestDiceToSpend(count)}
-          onCancel={() => setIsShortRestDialogOpen(false)}
-          onConfirm={completeShortRest}
-        />
-      )}
-
-      {/* Manage Sheet / Save / Load Modal */}
       <ManageSheetModal
-        isOpen={isManageModalOpen}
-        onClose={() => setIsManageModalOpen(false)}
+        isOpen={manageModalOpen}
+        onClose={() => setManageModalOpen(false)}
         currentCharacter={character}
-        currentCards={cards}
-        currentCombat={combatState}
-        onStorageError={handleStorageError}
-        onLoadCharacter={(char, loadedCards, classKey, loadedCombat) => {
-          setUndoHistory([]);
-          setCharacter(normalizeCharacterSheet(char));
-          if (loadedCards && loadedCards.length > 0) setCards(loadedCards);
-          if (classKey) handleSelectClass(classKey);
-          setCombatState(loadedCombat ?? DEFAULT_COMBAT_STATE);
-          showBanner(`Ficha "${char.name}" cargada.`);
-        }}
-        onResetDefaults={() => {
-          setUndoHistory([]);
-          clearCharacter();
-          clearCards();
-          clearCombatState();
-          clearRollHistory();
-          setCharacter(normalizeCharacterSheet(DEFAULT_CHARACTER));
-          setCards(DEFAULT_TACTICAL_CARDS);
-          setCombatState(DEFAULT_COMBAT_STATE);
-          setCurrentClass('mago');
-          showBanner('Personaje restablecido a los valores por defecto.');
-        }}
+        onLoadCharacter={(char) => updateCharacter(char)}
+        onResetDefaults={() => updateCharacter(DEFAULT_CHARACTERS[0])}
+      />
+
+      <ClassSelectorModal
+        isOpen={classSelectorModalOpen}
+        onClose={() => setClassSelectorModalOpen(false)}
+        currentClassId={character.classId}
+        onSelectClass={(classId) => updateCharacter({ ...character, classId })}
+      />
+
+      <LevelUpDialog
+        isOpen={levelUpModalOpen}
+        onClose={() => setLevelUpModalOpen(false)}
+        character={character}
+        onConfirmLevelUp={handleLevelUpConfirm}
+      />
+
+      <ShortRestDialog
+        isOpen={shortRestModalOpen}
+        onClose={() => setShortRestModalOpen(false)}
+        character={character}
+        onApplyHealing={handleShortRestHealing}
       />
     </div>
-    </ThemedRoot>
   );
 }
-export default App;

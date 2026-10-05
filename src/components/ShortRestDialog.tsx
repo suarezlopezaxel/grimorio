@@ -21,7 +21,7 @@ export const ShortRestDialog: React.FC<ShortRestDialogProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="short-rest-title"
-      className="bg-[#1c1a24] border border-white/10 rounded-xl max-w-sm w-full p-5 shadow-2xl"
+      className="themed-panel bg-transparent border border-white/10 rounded-xl max-w-sm w-full p-5 shadow-2xl"
     >
       <h2 id="short-rest-title" className="font-garamond text-xl text-white font-bold">
         Descanso corto
@@ -36,7 +36,7 @@ export const ShortRestDialog: React.FC<ShortRestDialogProps> = ({
         id="short-rest-hit-dice"
         value={diceToSpend}
         onChange={(event) => onDiceToSpendChange(Number(event.target.value))}
-        className="mt-1 w-full rounded-lg bg-[#0f0d16] border border-white/10 text-white px-3 py-2 focus:outline-none focus:border-[var(--theme-primary,#fbbf24)]"
+        className="mt-1 w-full rounded-lg bg-[var(--theme-surface-low)] border border-[var(--theme-surface-high)] text-white px-3 py-2 focus:outline-none focus:border-[var(--theme-primary)]"
       >
         {Array.from({ length: hitDicePool.remaining + 1 }, (_, count) => (
           <option key={count} value={count}>{count}</option>
@@ -45,13 +45,13 @@ export const ShortRestDialog: React.FC<ShortRestDialogProps> = ({
       <div className="mt-5 flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="px-3 py-2 rounded-lg bg-[#211e28] text-gray-300 text-xs border border-white/10 hover:text-white"
+          className="px-3 py-2 rounded-lg bg-[var(--theme-surface)] text-gray-300 text-xs border border-[var(--theme-surface-high)] hover:text-white"
         >
           Cancelar
         </button>
         <button
           onClick={onConfirm}
-          className="px-3 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] text-xs font-bold hover:brightness-110"
+          className="px-3 py-2 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)] text-xs font-bold hover:brightness-110"
         >
           Completar descanso
         </button>
