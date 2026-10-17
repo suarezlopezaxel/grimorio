@@ -33,11 +33,58 @@ export const CombatHitPointsFrame: React.FC<Props> = ({
   const hpPercent = Math.min(100, Math.max(0, (character.hitPoints.current / maxHp) * 100));
 
   const adjustHp = (amount: number) => {
+    const currentTemp = character.hitPoints.temp ?? 0;
+    const currentHP = character.hitPoints.current;
+
+    if (amount < 0) {
+      const damage = Math.abs(amount);
+      if (currentTemp > 0) {
+        if (damage >= currentTemp) {
+          const remainingDamage = damage - currentTemp;
+          const nextHP = Math.max(0, currentHP - remainingDamage);
+          onUpdate({
+            ...character,
+            hitPoints: {
+              ...character.hitPoints,
+              current: nextHP,
+              temp: 0,
+            },
+          });
+        } else {
+          const nextTemp = currentTemp - damage;
+          onUpdate({
+            ...character,
+            hitPoints: {
+              ...character.hitPoints,
+              temp: nextTemp,
+            },
+          });
+        }
+      } else {
+        const nextHP = Math.max(0, currentHP + amount);
+        onUpdate({
+          ...character,
+          hitPoints: {
+            ...character.hitPoints,
+            current: nextHP,
+          },
+        });
+      }
+    } else {
+      const nextHP = Math.min(maxHp, currentHP + amount);
+      onUpdate({
+        ...character,
+        hitPoints: { ...character.hitPoints, current: nextHP },
+      });
+    }
+  };
+
+  const setTempHP = (tempVal: number) => {
     onUpdate({
       ...character,
       hitPoints: {
         ...character.hitPoints,
-        current: Math.max(0, Math.min(maxHp, character.hitPoints.current + amount)),
+        temp: Math.max(0, tempVal),
       },
     });
   };
@@ -192,18 +239,34 @@ export const CombatHitPointsFrame: React.FC<Props> = ({
         </div>
       </ClassSubCard>
 
-      <div
-        className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-zinc-800"
-        role="progressbar"
-        aria-label="Puntos de golpe actuales"
-        aria-valuenow={character.hitPoints.current}
-        aria-valuemin={0}
-        aria-valuemax={maxHp}
-      >
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-          style={{ width: `${hpPercent}%` }}
-        />
+      <div className="mt-3 flex items-center justify-between gap-4">
+        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-label="Puntos de golpe actuales" aria-valuenow={character.hitPoints.current} aria-valuemin={0} aria-valuemax={maxHp}>
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+            style={{ width: `${hpPercent}%` }}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] font-semibold text-indigo-300">P. V. Temporales:</span>
+          <input
+            type="number"
+            min="0"
+            value={character.hitPoints.temp ?? 0}
+            onChange={(e) => {
+              const tempVal = Math.max(0, parseInt(e.target.value, 10) || 0);
+              onUpdate({
+                ...character,
+                hitPoints: {
+                  ...character.hitPoints,
+                  temp: tempVal,
+                },
+              });
+            }}
+            className="w-16 rounded-lg border border-indigo-500/40 bg-indigo-950/40 px-2 py-1 text-center font-mono text-xs font-bold text-indigo-200 focus:border-indigo-400 focus:outline-none"
+            placeholder="0"
+          />
+        </div>
       </div>
 
       <ClassSubCard

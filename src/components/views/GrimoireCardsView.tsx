@@ -522,7 +522,7 @@ export const GrimoireCardsView: React.FC<Props> = ({ character, onUpdate, onOpen
                       )}
                     </>
                   )}
-                  {card.category !== 'feat' && (
+                  {true && (
                     <button
                       onClick={() => {
                         setEditingCard(card);
