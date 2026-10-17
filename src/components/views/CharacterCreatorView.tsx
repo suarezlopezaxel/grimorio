@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getDieSize } from '../../lib/hitDice';
 import { spellSlotsForClassLevel } from '../../lib/classProgression';
+import { getProficiencyBonus } from '../../lib/proficiencyBonus';
 import { abilityForSkill } from '../../lib/skillAbilities';
 import {
   User,
@@ -223,7 +224,7 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
   };
 
   const handleFinish = () => {
-    const profBonus = Math.floor((level - 1) / 4) + 2;
+    const profBonus = getProficiencyBonus(level);
     if (ABILITY_KEYS.some((ability) =>
       !Number.isInteger(abilities[ability]) || abilities[ability] < 1 || abilities[ability] > 20,
     )) {
@@ -287,9 +288,23 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
       carryingCapacityMax: finalAbilities.FUE * 15,
       attunementSlotsUsed: 0,
 
-      spellcastingAbility: classId === 'mago' ? 'INT' : classId === 'druida' || classId === 'clerigo' ? 'SAB' : 'CAR',
-      spellSaveDC: 8 + profBonus + getMod(finalAbilities.SAB),
-      spellAttackBonus: profBonus + getMod(finalAbilities.SAB),
+      spellcastingAbility: classId === 'mago' || classId === 'guerrero' || classId === 'picaro' ? 'INT'
+        : classId === 'clerigo' || classId === 'druida' || classId === 'explorador' ? 'SAB'
+        : 'CAR',
+      spellSaveDC: 8 + profBonus + getMod(
+        finalAbilities[
+          classId === 'mago' || classId === 'guerrero' || classId === 'picaro' ? 'INT'
+          : classId === 'clerigo' || classId === 'druida' || classId === 'explorador' ? 'SAB'
+          : 'CAR'
+        ]
+      ),
+      spellAttackBonus: profBonus + getMod(
+        finalAbilities[
+          classId === 'mago' || classId === 'guerrero' || classId === 'picaro' ? 'INT'
+          : classId === 'clerigo' || classId === 'druida' || classId === 'explorador' ? 'SAB'
+          : 'CAR'
+        ]
+      ),
       spellSlots: spellSlotsForClassLevel(classId, level),
       knownSpells: spellsList.map((s, i) => ({
         id: `sp-${i}`,

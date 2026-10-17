@@ -1,5 +1,5 @@
 import { classProgressionFor } from '../data/classes';
-import type { CharacterSheet, ClassKey, ClassResource, SpellSlotTier } from '../types';
+import { getProficiencyBonus } from './proficiencyBonus';
 import { getSkillProficiencyLevel, proficiencyBonusForLevel } from './proficiency';
 import { updateHitDicePoolForLevel, getHitDicePool } from './hitDice';
 import { effectiveMaxHitPoints } from './conditions';
@@ -243,7 +243,7 @@ export function applyWizardLevelUp(
   const level = Math.max(character.level, Math.min(20, Math.floor(newLevel)));
   if (level === character.level) return character;
 
-  const proficiencyBonus = Math.ceil(1 + level / 4);
+  const proficiencyBonus = getProficiencyBonus(level);
   const spellcastingModifier = Object.values(character.abilities)
     .find((ability) => ability.isKeyAttribute)?.modifier ?? character.abilities.INT.modifier;
   const hpGain = hitPointGains
