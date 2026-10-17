@@ -607,6 +607,9 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     <option value="Legal Neutral">Legal Neutral</option>
                     <option value="Neutral">Neutral</option>
                     <option value="Caótico Neutral">Caótico Neutral</option>
+                    <option value="Legal Malvado">Legal Malvado</option>
+                    <option value="Neutral Malvado">Neutral Malvado</option>
+                    <option value="Caótico Malvado">Caótico Malvado</option>
                   </select>
                 </div>
               </div>
