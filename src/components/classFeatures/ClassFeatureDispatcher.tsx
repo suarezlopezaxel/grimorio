@@ -58,7 +58,9 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
       );
     case 'clerigo':
       return <ClericDomainModule character={character} onUpdate={onUpdate} />;
-    case 'guerrero':
+    case 'guerrero': {
+      const level = character.level ?? 1;
+      if (level < 2) return null;
       return (
         <FighterActionSurgeModule
           character={character}
@@ -69,6 +71,7 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
           }}
         />
       );
+    }
     case 'monje':
       return (
         <MonkKiModule

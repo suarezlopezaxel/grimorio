@@ -285,26 +285,10 @@ export default function App() {
   const SHORT_REST_SECOND_WIND_MAX = (level: number) => (level >= 10 ? 4 : level >= 4 ? 3 : 2);
 
   const handleShortRest = () => {
-    updateCharacter({
-      ...character,
-      classResources: {
-        ...character.classResources,
-        ...(character.classId === 'guerrero'
-          ? {
-              fighter: {
-                ...(character.classResources.fighter ?? {
-                  secondWindUsesCurrent: 0,
-                  secondWindUsesMax: 0,
-                  actionSurgeUsed: false,
-                }),
-                secondWindUsesMax: SHORT_REST_SECOND_WIND_MAX(character.level),
-                secondWindUsesCurrent: SHORT_REST_SECOND_WIND_MAX(character.level),
-                actionSurgeUsed: false,
-              },
-            }
-          : {}),
-      },
-    });
+    // El descanso corto se maneja a través del diálogo de descanso corto (handleShortRestHealing)
+    // que permite gastar dados de golpe y aplica la recuperación del Guerrero (+1 uso de Segundo Aliento, etc.).
+    // Si se invoca directamente, delega en la misma lógica restaurando 1 uso de Segundo Aliento y Action Surge.
+    handleShortRestHealing(0, 0);
   };
 
   const handleShortRestHealing = (hpRegained: number, diceSpent: number) => {
@@ -316,6 +300,11 @@ export default function App() {
       character.level,
       getEffectiveAbilityScore(character.cards, 'CAR', character.abilities.CAR.score),
     );
+
+    const currentFighter = character.classResources.fighter;
+    const secondWindMax = SHORT_REST_SECOND_WIND_MAX(character.level);
+    const currentSecondWind = currentFighter?.secondWindUsesCurrent ?? 0;
+    const restoredSecondWind = Math.min(secondWindMax, currentSecondWind + 1);
 
     updateCharacter({
       ...character,
@@ -332,6 +321,22 @@ export default function App() {
         : card),
       classResources: {
         ...character.classResources,
+        ...(character.classId === 'guerrero'
+          ? {
+              fighter: {
+                ...(currentFighter ?? {
+                  secondWindUsesCurrent: 0,
+                  secondWindUsesMax: 0,
+                  actionSurgeUsed: false,
+                }),
+                secondWindUsesMax: secondWindMax,
+                secondWindUsesCurrent: restoredSecondWind,
+                actionSurgeMax: (character.level >= 17 ? 2 : 1),
+                actionSurgeCurrent: (character.level >= 17 ? 2 : 1),
+                actionSurgeUsed: false,
+              },
+            }
+          : {}),
         ...(character.classId === 'druida'
           ? {
               druid: {

@@ -957,35 +957,8 @@ export const CombatTurnView: React.FC<Props> = ({
                     onClick={() => handleUseCard(card, 'action')}
                     className="w-full mt-2 py-1.5 rounded bg-black/40 hover:bg-black/60 border border-white/15 font-semibold cursor-pointer"
                   >
-                    🎲 {card.category === 'attack' ? 'Tirar daño' : 'Tirar / Desplegar'}
-                    {card.category !== 'attack' && typeof (card as any).effectOrDamage === 'string'
-                      ? `: ${(card as any).effectOrDamage}`
-                      : ''}
+                    🎲 Tirar dados
                   </button>
-                  {card.category === 'attack' && (
-                    <button
-                      onClick={() => {
-                        const ability = card.ability ?? 'FUE';
-                        const bonus = getAbilityModifier(ability)
-                          + (card.proficient ? character.proficiencyBonus : 0)
-                          + (card.magicBonus ?? 0)
-                          + (card.attackBonus ?? 0)
-                          + (card.attackType === 'spell' ? 0 : getItemEffectTotal(character.cards, 'attackBonus'));
-                        onOpenDiceTray(`1d20 ${bonus < 0 ? '-' : '+'} ${Math.abs(bonus)}`);
-                      }}
-                      className="w-full mt-1 py-1 rounded bg-amber-950/50 hover:bg-amber-900/60 border border-amber-500/20 text-amber-100 font-semibold cursor-pointer"
-                    >
-                      Ataque {(() => {
-                        const ability = card.ability ?? 'FUE';
-                        const bonus = getAbilityModifier(ability)
-                          + (card.proficient ? character.proficiencyBonus : 0)
-                          + (card.magicBonus ?? 0)
-                          + (card.attackBonus ?? 0)
-                          + (card.attackType === 'spell' ? 0 : getItemEffectTotal(character.cards, 'attackBonus'));
-                        return `${bonus < 0 ? '' : '+'}${bonus}`;
-                      })()}
-                    </button>
-                  )}
                 </ClassSubCard>
               ))}
             {getEquippedItems(character.cards).filter((card) => card.item?.kind === 'weapon').map((card) => {
@@ -1052,7 +1025,7 @@ export const CombatTurnView: React.FC<Props> = ({
                     onClick={() => handleUseCard(card, 'bonus')}
                     className="w-full mt-2 py-1.5 rounded bg-black/40 hover:bg-black/60 border border-white/15 font-semibold cursor-pointer"
                   >
-                    🎲 Tirar: {typeof (card as any).effectOrDamage === 'string' ? (card as any).effectOrDamage : ''}
+                    🎲 Tirar dados
                   </button>
                 </ClassSubCard>
               ))}
@@ -1102,7 +1075,7 @@ export const CombatTurnView: React.FC<Props> = ({
                     onClick={() => handleUseCard(card, 'reaction')}
                     className="w-full mt-2 py-1.5 rounded bg-black/40 hover:bg-black/60 border border-white/15 font-semibold cursor-pointer"
                   >
-                    🎲 Tirar: {typeof (card as any).effectOrDamage === 'string' ? (card as any).effectOrDamage : ''}
+                    🎲 Tirar dados
                   </button>
                 </ClassSubCard>
               ))}

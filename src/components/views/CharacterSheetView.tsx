@@ -146,15 +146,66 @@ export const CharacterSheetView: React.FC<Props> = ({
     });
   };
 
-  // Hit Points handlers (equivalentes a los de CW for MCU 11.1)
+  // Hit Points handlers con soporte para Puntos de Vida Temporales (temp HP)
   const adjustHP = (delta: number) => {
-    const next = Math.max(
-      0,
-      Math.min(effectiveMaxHitPoints, character.hitPoints.current + delta),
-    );
+    const currentTemp = character.hitPoints.temp ?? 0;
+    const currentHP = character.hitPoints.current;
+
+    if (delta < 0) {
+      // Daño o reducción: primero absorben los Puntos de Vida Temporales (temp HP)
+      const damage = Math.abs(delta);
+      if (currentTemp > 0) {
+        if (damage >= currentTemp) {
+          const remainingDamage = damage - currentTemp;
+          const nextHP = Math.max(0, currentHP - remainingDamage);
+          onUpdate({
+            ...character,
+            hitPoints: {
+              ...character.hitPoints,
+              current: nextHP,
+              temp: 0,
+            },
+          });
+        } else {
+          const nextTemp = currentTemp - damage;
+          onUpdate({
+            ...character,
+            hitPoints: {
+              ...character.hitPoints,
+              temp: nextTemp,
+            },
+          });
+        }
+      } else {
+        const nextHP = Math.max(0, currentHP + delta);
+        onUpdate({
+          ...character,
+          hitPoints: {
+            ...character.hitPoints,
+            current: nextHP,
+          },
+        });
+      }
+    } else {
+      // Curación: suma directa a los PG normales sin afectar los temp HP
+      const nextHP = Math.min(
+        effectiveMaxHitPoints,
+        currentHP + delta,
+      );
+      onUpdate({
+        ...character,
+        hitPoints: { ...character.hitPoints, current: nextHP },
+      });
+    }
+  };
+
+  const setTempHP = (tempVal: number) => {
     onUpdate({
       ...character,
-      hitPoints: { ...character.hitPoints, current: next },
+      hitPoints: {
+        ...character.hitPoints,
+        temp: Math.max(0, tempVal),
+      },
     });
   };
 
@@ -753,11 +804,18 @@ export const CharacterSheetView: React.FC<Props> = ({
           </div>
 
           {/* Big HP Display */}
-          <div className="flex items-baseline gap-2">
-            <span className="font-cinzel text-4xl font-extrabold drop-shadow">
-              {character.hitPoints.current}
-            </span>
-            <span className="opacity-70 font-cinzel text-xl">/ {effectiveMaxHitPoints} PG</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-baseline gap-2">
+              <span className="font-cinzel text-4xl font-extrabold drop-shadow">
+                {character.hitPoints.current}
+              </span>
+              <span className="opacity-70 font-cinzel text-xl">/ {effectiveMaxHitPoints} PG</span>
+            </div>
+            {(character.hitPoints.temp ?? 0) > 0 && (
+              <div className="rounded-lg bg-indigo-500/20 border border-indigo-400/40 px-2.5 py-1 text-xs font-mono font-bold text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.3)]">
+                +{character.hitPoints.temp} Temp
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -786,13 +844,27 @@ export const CharacterSheetView: React.FC<Props> = ({
         </ClassSubBox>
 
         {/* HP Bar */}
-        <div className="mt-3 h-2.5 w-full rounded-full bg-zinc-800 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-            style={{
-              width: `${Math.min(100, Math.max(0, (character.hitPoints.current / effectiveMaxHitPoints) * 100))}%`,
-            }}
-          />
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <div className="h-2.5 flex-1 rounded-full bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+              style={{
+                width: `${Math.min(100, Math.max(0, (character.hitPoints.current / effectiveMaxHitPoints) * 100))}%`,
+              }}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono font-semibold text-indigo-300">P. V. Temporales:</span>
+            <input
+              type="number"
+              min="0"
+              value={character.hitPoints.temp ?? 0}
+              onChange={(e) => setTempHP(parseInt(e.target.value, 10) || 0)}
+              className="w-16 rounded-lg border border-indigo-500/40 bg-indigo-950/40 px-2 py-1 text-center font-mono text-xs text-indigo-200 font-bold focus:outline-none focus:border-indigo-400"
+              placeholder="0"
+            />
+          </div>
         </div>
 
         {/* Death Saves */}
@@ -890,12 +962,12 @@ export const CharacterSheetView: React.FC<Props> = ({
       {/* 9. Espacios de Hechizo & Armas y Ataques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Espacios de Hechizo */}
-        {character.classId !== 'brujo' && (
+        {character.classId !== 'brujo' && character.classId !== 'barbaro' && (
           <SpellSlotsSection character={character} onUpdate={onUpdate} />
         )}
 
         {/* Armas & Ataques */}
-        <ClassWidget classId={character.classId} className={`p-4 md:p-5 ${character.classId === 'brujo' ? 'lg:col-span-2' : ''}`}>
+        <ClassWidget classId={character.classId} className={`p-4 md:p-5 ${character.classId === 'brujo' || character.classId === 'barbaro' ? 'lg:col-span-2' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-cinzel text-sm font-bold flex items-center gap-2">
               <span>⚔️</span>
@@ -913,7 +985,7 @@ export const CharacterSheetView: React.FC<Props> = ({
                 + (attackCard?.magicBonus ?? 0)
                 + (attackCard?.attackBonus ?? wep.attackBonus)
                 + (isSpellAttack ? 0 : getItemEffectTotal(character.cards, 'attackBonus'));
-              const damageFormula = attackCard?.damage?.length
+              const baseDamageFormula = attackCard?.damage?.length
                 ? attackCard.damage.map((damage) => {
                     const bonus = damage.mod
                       + (isSpellAttack ? 0 : getEffectiveAbilityMod(ability))
@@ -921,6 +993,10 @@ export const CharacterSheetView: React.FC<Props> = ({
                     return `${damage.dice} ${bonus < 0 ? '-' : '+'} ${Math.abs(bonus)}`;
                   }).join(' + ')
                 : wep.damage;
+
+              const inStealth = character.classId === 'picaro' && character.classId === 'picaro' && character.classResources.rogue?.inStealth;
+              const sneakDice = character.classId === 'picaro' ? (character.classResources.rogue?.sneakAttackDice || getSneakAttackDice(character.level)) : null;
+              const damageFormula = inStealth && sneakDice ? `${baseDamageFormula} + ${sneakDice}` : baseDamageFormula;
               return (
                 <ClassSubBox
                   key={wep.id}
@@ -952,36 +1028,6 @@ export const CharacterSheetView: React.FC<Props> = ({
                     >
                       Daño: {damageFormula}
                     </button>
-                  </div>
-                </ClassSubBox>
-              );
-            })}
-            {character.cards.filter((card) => card.category === 'item' && card.equipped && card.item?.kind === 'weapon').map((card) => {
-              const weapon = card.item!;
-              const abilityModifier = getEffectiveAbilityMod(weapon.weaponAbility ?? 'FUE');
-              const attackBonus = abilityModifier
-                + (weapon.weaponProficient ? character.proficiencyBonus : 0)
-                + getItemEffectTotal(character.cards, 'attackBonus');
-              const damageModifier = abilityModifier + getItemEffectTotal(character.cards, 'damageBonus');
-              return (
-                <ClassSubBox key={card.id} classId={character.classId} className="flex items-center justify-between p-3">
-                  <div>
-                    <div className="font-cinzel text-xs font-bold">{card.name}</div>
-                    <div className="text-[10px] opacity-75">
-                      {weapon.weaponRange || 'Alcance no especificado'}
-                      {weapon.weaponDamage ? ` • ${weapon.weaponDamage} ${weapon.weaponDamageType || ''}` : ''}
-                      {card.properties?.length ? ` • ${card.properties.join(', ')}` : ''}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => onOpenDiceTray(`1d20 ${attackBonus < 0 ? '-' : '+'} ${Math.abs(attackBonus)}`)} className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold cursor-pointer">
-                      {formatMod(attackBonus)} Atq.
-                    </button>
-                    {weapon.weaponDamage && (
-                      <button onClick={() => onOpenDiceTray(`${weapon.weaponDamage} ${damageModifier < 0 ? '-' : '+'} ${Math.abs(damageModifier)}`)} className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold cursor-pointer">
-                        Daño
-                      </button>
-                    )}
                   </div>
                 </ClassSubBox>
               );

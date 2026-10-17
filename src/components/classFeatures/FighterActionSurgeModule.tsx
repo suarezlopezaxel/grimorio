@@ -15,7 +15,21 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
     actionSurgeUsed: false,
   };
 
-  const calcSecondWindMax = (level: number) => (level >= 10 ? 4 : level >= 4 ? 3 : 2);
+  const calcSecondWindMax = (level: number) => {
+    if (level >= 10) return 4;
+    if (level >= 4) return 3;
+    return 2;
+  };
+
+  const calcActionSurgeMax = (level: number) => {
+    if (level >= 17) return 2;
+    return 1;
+  };
+
+  const actionSurgeMax = calcActionSurgeMax(character.level);
+  const actionSurgeCurrent = typeof fighterData.actionSurgeCurrent === 'number'
+    ? fighterData.actionSurgeCurrent
+    : (fighterData.actionSurgeUsed ? 0 : actionSurgeMax);
 
   const useSecondWind = () => {
     // DEBUG: verificar decremento de cargas
@@ -73,14 +87,19 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
   };
 
   const useActionSurge = () => {
-    if (fighterData.actionSurgeUsed) return;
+    const current = typeof fighterData.actionSurgeCurrent === 'number'
+      ? fighterData.actionSurgeCurrent
+      : (fighterData.actionSurgeUsed ? 0 : actionSurgeMax);
+    if (current <= 0) return;
+    const nextCurrent = Math.max(0, current - 1);
     onUpdate({
       ...character,
       classResources: {
         ...character.classResources,
         fighter: {
           ...fighterData,
-          actionSurgeUsed: true,
+          actionSurgeCurrent: nextCurrent,
+          actionSurgeUsed: nextCurrent === 0,
         },
       },
     });
@@ -93,6 +112,13 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
       actionSurgeUsed: false,
     };
     const secondWindMax = calcSecondWindMax(character.level);
+    const actionMax = calcActionSurgeMax(character.level);
+
+    // D&D 2024: Un descanso corto devuelve 1 uso de segundo aliento y todos los de action surge.
+    // Un descanso largo devuelve todos. Aquí al hacer clic en el botón de descanso podemos recargar 1 uso o todos según convenga, 
+    // pero para cumplir con "Un descanso corto devuelve 1 uso de segundo aliento", sumamos 1 sin superar el máximo.
+    const currentSecondWind = fighter.secondWindUsesCurrent ?? 0;
+    const restoredSecondWind = Math.min(secondWindMax, currentSecondWind + 1);
 
     onUpdate({
       ...character,
@@ -101,7 +127,9 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
         fighter: {
           ...fighter,
           secondWindUsesMax: secondWindMax,
-          secondWindUsesCurrent: (fighter.secondWindUsesCurrent ?? 0) === 0 ? secondWindMax : Math.min(fighter.secondWindUsesCurrent ?? 0, secondWindMax),
+          secondWindUsesCurrent: restoredSecondWind,
+          actionSurgeMax: actionMax,
+          actionSurgeCurrent: actionMax,
           actionSurgeUsed: false,
         },
       },
@@ -148,14 +176,14 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
           onClick={useSecondWind}
           disabled={!(fighterData.secondWindUsesCurrent > 0)}
           className={`group relative flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-300 ${
-            !fighterData.secondWindUsesCurrent
+            !(fighterData.secondWindUsesCurrent > 0)
               ? 'border-zinc-800 bg-zinc-900/60 opacity-40 cursor-not-allowed filter grayscale'
               : 'border-amber-500/70 bg-gradient-to-r from-[#2a1c12] via-[#3d2919] to-[#2a1c12] shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-400 hover:scale-[1.01] cursor-pointer'
           }`}
         >
           <div
             className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition ${
-              !fighterData.secondWindUsesCurrent
+              !(fighterData.secondWindUsesCurrent > 0)
                 ? 'border-zinc-700 bg-zinc-800 text-zinc-500'
                 : 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_#f59e0b]'
             }`}
@@ -173,28 +201,28 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
                     : 'bg-zinc-800 text-zinc-500'
                 }`}
               >
-                {fighterData.secondWindUsesCurrent > 0 ? 'ENCENDIDO' : 'APAGADO'}
+                {fighterData.secondWindUsesCurrent} / {calcSecondWindMax(character.level)} Disponibles
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1">
-              Recupera <strong className="text-amber-200">1d10 + {character.level} PG</strong> como Acción Adicional
+              Recupera <strong className="text-amber-200">1d10 + {character.level} PG</strong> (1 uso por descanso corto)
             </p>
           </div>
         </button>
 
-        {/* Oleada de Acción */}
+        {/* Action Surge */}
         <button
           onClick={useActionSurge}
-          disabled={fighterData.actionSurgeUsed}
+          disabled={actionSurgeCurrent <= 0}
           className={`group relative flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-300 ${
-            !fighterData.actionSurgeUsed
+            actionSurgeCurrent > 0
               ? 'border-blue-400/70 bg-gradient-to-r from-[#142338] via-[#1d3557] to-[#142338] shadow-[0_0_20px_rgba(56,189,248,0.25)] hover:border-blue-300 hover:scale-[1.01] cursor-pointer'
               : 'border-zinc-800 bg-zinc-900/60 opacity-40 cursor-not-allowed filter grayscale'
           }`}
         >
           <div
             className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition ${
-              !fighterData.actionSurgeUsed
+              actionSurgeCurrent > 0
                 ? 'border-blue-400 bg-blue-500/30 text-blue-200 shadow-[0_0_12px_#38bdf8]'
                 : 'border-zinc-700 bg-zinc-800 text-zinc-500'
             }`}
@@ -204,19 +232,19 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
 
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span className="font-cinzel text-sm font-bold text-slate-100">Oleada de Acción</span>
+              <span className="font-cinzel text-sm font-bold text-slate-100">Action Surge</span>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  !fighterData.actionSurgeUsed
+                  actionSurgeCurrent > 0
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                     : 'bg-zinc-800 text-zinc-500'
                 }`}
               >
-                {!fighterData.actionSurgeUsed ? 'ENCENDIDO' : 'APAGADO'}
+                {actionSurgeCurrent} / {actionSurgeMax} Disponibles
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1">
-              Gana <strong className="text-blue-200">1 Acción adicional</strong> en tu turno inmediatamente
+              Gana <strong className="text-blue-200">1 Acción adicional</strong> (solo una por turno)
             </p>
           </div>
         </button>

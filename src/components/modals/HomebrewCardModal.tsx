@@ -1017,6 +1017,20 @@ export const HomebrewCardModal: React.FC<Props> = ({ isOpen, onClose, onSaveCard
 
           {category !== 'feat' && (
             <>
+          {category === 'attack' && (
+            <div>
+              <label className="text-zinc-300 font-semibold block mb-1">Tipo de Ataque:</label>
+              <select
+                value={attackType || 'melee'}
+                onChange={(e) => setAttackType(e.target.value as any)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white focus:outline-none"
+              >
+                <option value="melee">Cuerpo a Cuerpo (CaC)</option>
+                <option value="ranged">Distancia (Dist)</option>
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2">
               <label className="text-zinc-300 font-semibold block mb-1">Alcance:</label>

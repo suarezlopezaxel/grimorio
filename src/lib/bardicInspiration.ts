@@ -6,7 +6,8 @@ export interface BardicInspirationResource {
 }
 
 export function bardicInspirationMax(charismaScore: number): number {
-  return Math.max(1, Math.floor((charismaScore - 10) / 2));
+  const mod = Math.floor((charismaScore - 10) / 2);
+  return Math.max(1, Math.min(5, mod));
 }
 
 export function bardicInspirationDie(level: number): string {

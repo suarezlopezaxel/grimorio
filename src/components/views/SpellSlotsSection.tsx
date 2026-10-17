@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Sparkles, Shield } from 'lucide-react';
+import { RotateCcw, Sparkles, Shield, Key } from 'lucide-react';
 import { ClassWidget, ClassSubBox } from '../fx/ClassStyledContainer';
 
 interface SpellSlotsProps {
@@ -270,6 +270,7 @@ export const SpellSlotsSection: React.FC<SpellSlotsProps> = ({ character, onUpda
                 const checked = i < used;
                 const isPaladin = character?.classId === 'paladin';
                 const isSorcerer = character?.classId === 'hechicero';
+                const isRogue = character?.classId === 'picaro';
                 return (
                   <label
                     key={i}
@@ -283,6 +284,10 @@ export const SpellSlotsSection: React.FC<SpellSlotsProps> = ({ character, onUpda
                         ? (!checked
                             ? 'border-red-400 bg-red-950/40 text-red-300 shadow-[0_0_12px_rgba(248,113,113,0.85)] scale-105'
                             : 'border-red-950/60 bg-stone-900/60 text-red-900/60 hover:border-red-700')
+                        : isRogue
+                        ? (!checked
+                            ? 'border-purple-400 bg-purple-950/40 text-purple-300 shadow-[0_0_12px_rgba(192,132,252,0.85)] scale-105'
+                            : 'border-purple-950/60 bg-stone-900/60 text-purple-900/60 hover:border-purple-700')
                         : (!checked
                             ? 'border-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.85)]'
                             : 'bg-transparent border-gray-700'))
@@ -296,6 +301,8 @@ export const SpellSlotsSection: React.FC<SpellSlotsProps> = ({ character, onUpda
                       <svg className={`w-3.5 h-3.5 transition-transform ${!checked ? 'drop-shadow-[0_0_8px_rgba(248,113,113,0.9)] text-red-300' : 'text-red-900/60 opacity-40'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                       </svg>
+                    ) : isRogue ? (
+                      <Key className={`w-3.5 h-3.5 transition-transform ${!checked ? 'drop-shadow-[0_0_8px_rgba(192,132,252,0.9)] text-purple-300' : 'text-purple-900/60 opacity-40'}`} />
                     ) : null}
 
                     <input

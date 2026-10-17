@@ -8,12 +8,32 @@ interface Props {
   onToggleStealthMode?: (active: boolean) => void;
 }
 
+export function getSneakAttackDice(level: number): string {
+  if (level <= 2) return '1d6';
+  if (level <= 4) return '2d6';
+  if (level <= 6) return '3d6';
+  if (level <= 8) return '4d6';
+  if (level <= 10) return '5d6';
+  if (level <= 12) return '6d6';
+  if (level <= 14) return '7d6';
+  if (level <= 16) return '8d6';
+  if (level <= 18) return '9d6';
+  return '10d6';
+}
+
 export const RogueStealthModule: React.FC<Props> = ({ character, onUpdate, onToggleStealthMode }) => {
+  const currentDice = getSneakAttackDice(character.level);
   const rogueData = character.classResources.rogue || {
     inStealth: false,
-    sneakAttackDice: `${Math.ceil(character.level / 2)}d6`,
+    sneakAttackDice: currentDice,
     stolenLootCount: 3,
   };
+
+  // Ensure sneak attack dice always matches current character level automatically
+  const activeDice = currentDice;
+  if (rogueData.sneakAttackDice !== activeDice) {
+    rogueData.sneakAttackDice = activeDice;
+  }
 
   const toggleStealth = () => {
     const nextStealth = !rogueData.inStealth;

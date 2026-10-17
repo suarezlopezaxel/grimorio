@@ -201,8 +201,8 @@ export const DiceTrayModal: React.FC<Props> = ({ isOpen, onClose, presetFormula,
   const totalDiceSelected = Object.values(diceCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-[#121626] via-[#0d101c] to-[#181d30] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-emerald-500/40 bg-[#0d101c] p-6 shadow-2xl text-zinc-100">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-4">
           <div className="flex items-center gap-2.5">
