@@ -13,7 +13,7 @@ const WILD_SURGE_TABLE = [
   'Tu piel se vuelve de bronce pulido durante 1 minuto (+1 a la CA).',
   'Lanzas una ráfaga de plumas que ciega brevemente a criaturas a 5 pies.',
   'Puedes teletransportarte hasta 20 pies como acción adicional el próximo turno.',
-  'Recuperas tu espacio de conjuro de menor nivel gastado.',
+  'Recuperas tu espacio de hechizo de menor nivel gastado.',
   'Una lluvia de pétalos de orquídea aromáticos cae en un radio de 30 pies.',
 ];
 
@@ -21,9 +21,13 @@ export const SorcererMetamagicModule: React.FC<Props> = ({ character, onUpdate, 
   const sorcData = character.classResources.sorcerer || {
     sorceryPointsCurrent: character.level,
     sorceryPointsMax: character.level,
-    activeMetamagic: ['Conjuro Acelerado', 'Conjuro Duplicado'],
+    activeMetamagic: ['Hechizo Acelerado', 'Hechizo Duplicado'],
     wildMagicCount: 0,
   };
+
+  const currentLevel = character.level ?? 1;
+  const effectiveMax = currentLevel;
+  const effectiveCurrent = Math.min(sorcData.sorceryPointsCurrent, effectiveMax);
 
   const [lastSurge, setLastSurge] = useState<string | null>(null);
 
@@ -48,7 +52,8 @@ export const SorcererMetamagicModule: React.FC<Props> = ({ character, onUpdate, 
         ...character.classResources,
         sorcerer: {
           ...sorcData,
-          sorceryPointsCurrent: sorcData.sorceryPointsMax,
+          sorceryPointsMax: currentLevel,
+          sorceryPointsCurrent: currentLevel,
         },
       },
     });
@@ -76,14 +81,14 @@ export const SorcererMetamagicModule: React.FC<Props> = ({ character, onUpdate, 
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-cinzel text-base font-bold text-pink-100 tracking-wide">
-                Puntos de Hechicería & Linaje Primordial
+                Puntos de Hechicería
               </h3>
               <span className="rounded-full bg-pink-500/20 px-2.5 py-0.5 text-xs font-semibold text-pink-200 border border-pink-500/30">
                 {sorcData.sorceryPointsCurrent} / {sorcData.sorceryPointsMax} Puntos
               </span>
             </div>
             <p className="text-xs text-pink-200/70">
-              Canaliza orbes de maná para alterar conjuros con Metamagia o regenerar espacios
+              Canaliza orbes de maná para alterar hechizos con Metamagia o regenerar espacios
             </p>
           </div>
         </div>
@@ -100,12 +105,12 @@ export const SorcererMetamagicModule: React.FC<Props> = ({ character, onUpdate, 
       {/* Floating Glowing Mana Orbs */}
       <div className="my-3 rounded-xl border border-pink-500/30 bg-[#160714]/80 p-4 shadow-inner">
         <span className="text-xs font-cinzel font-semibold text-pink-300 block mb-3">
-          Orbes de Energía Vital Crepitante:
+          Orbes de Energía:
         </span>
 
         <div className="flex flex-wrap items-center gap-3">
-          {Array.from({ length: sorcData.sorceryPointsMax }).map((_, i) => {
-            const isFilled = i < sorcData.sorceryPointsCurrent;
+          {Array.from({ length: effectiveMax }).map((_, i) => {
+            const isFilled = i < effectiveCurrent;
             return (
               <button
                 key={i}
@@ -130,7 +135,7 @@ export const SorcererMetamagicModule: React.FC<Props> = ({ character, onUpdate, 
             className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 px-3.5 py-1.5 text-xs font-bold font-cinzel text-white hover:brightness-110 shadow-md cursor-pointer"
           >
             <Dices className="h-4 w-4" />
-            Tirar Sobrecarga de Magia Salvaje (d20)
+            Tirar d20
           </button>
 
           {lastSurge && (

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CharacterSheet, ClassId, ElementalAffinity } from './types/character';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { CharacterSheet, ClassId, ElementalAffinity, Combatant } from './types/character';
 import { DEFAULT_CHARACTERS } from './data/defaultCharacters';
 import { CLASS_THEMES } from './data/classThemes';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
@@ -16,11 +16,101 @@ import { ManageSheetModal } from './components/modals/ManageSheetModal';
 import { ClassSelectorModal } from './components/modals/ClassSelectorModal';
 import { LevelUpDialog } from './components/modals/LevelUpDialog';
 import { ShortRestDialog } from './components/modals/ShortRestDialog';
+import { spellSlotsForClassLevel } from './lib/classProgression';
+import { normalizeBardicInspiration } from './lib/bardicInspiration';
+import { getEffectiveAbilityScore } from './lib/itemEffects';
 
 const STORAGE_KEY = 'grimorio_arcanum_active_character_v5';
 
+function readCombatants(characterId: string, fallback: Combatant[]): Combatant[] {
+  try {
+    const stored = localStorage.getItem(`grimorio_combatants_${characterId}`);
+    if (!stored) return fallback;
+
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed) || !parsed.every((combatant) =>
+      combatant !== null
+      && typeof combatant === 'object'
+      && 'id' in combatant
+      && typeof combatant.id === 'string'
+      && 'name' in combatant
+      && typeof combatant.name === 'string'
+      && 'type' in combatant
+      && (combatant.type === 'player' || combatant.type === 'ally' || combatant.type === 'enemy')
+      && 'initiative' in combatant
+      && typeof combatant.initiative === 'number'
+      && 'hp' in combatant
+      && typeof combatant.hp === 'number'
+      && 'maxHp' in combatant
+      && typeof combatant.maxHp === 'number'
+      && 'ac' in combatant
+      && typeof combatant.ac === 'number'
+      && 'conditions' in combatant
+      && Array.isArray(combatant.conditions)
+      && combatant.conditions.every((condition: unknown) => typeof condition === 'string'),
+    )) {
+      return fallback;
+    }
+
+    return parsed as Combatant[];
+  } catch (error) {
+    console.error('No se pudo restaurar la iniciativa del combate.', error);
+    return fallback;
+  }
+}
+
 export default function App() {
   // Active Character State with Undo stack
+  const syncSheetFromCards = (input: CharacterSheet): CharacterSheet => {
+    // Preserve currency editability (CP/SP/EP/GP/PP)
+    const preservedCurrency = input.currency;
+
+    const attackCards = input.cards.filter((c) => c.category === 'attack');
+    const itemCards = input.cards.filter((c) => c.category === 'item');
+
+    const spellSlots = spellSlotsForClassLevel(input.classId, input.level, input.spellSlots);
+    const classResources = input.classResources;
+
+    const weapons = attackCards.map((c) => ({
+      id: c.id,
+      name: c.title,
+      attackBonus: 0,
+      damage: c.effectOrDamage || '—',
+      damageType: c.attackOrDC || 'Daño',
+      range: c.range || 'Me`elee',
+      properties: c.actionType || 'Ataque',
+      isHomebrew: (c as any).isHomebrew ?? false,
+      // Keep equipped semantics consistent with existing sheet usage.
+      isEquipped: true,
+    }));
+
+    const cardInventory = itemCards.map((c) => ({
+      id: c.id,
+      cardId: c.id,
+      name: c.name || c.title,
+      quantity: c.item?.quantity ?? 1,
+      weight: c.item?.weight ?? 0,
+      attuned: Boolean(c.item?.attuned),
+      requiresAttunement: Boolean(c.item?.requiresAttunement),
+      equipped: Boolean(c.equipped),
+      value: c.item?.value || '—',
+      notes: c.description,
+    }));
+    const inventory = [
+      ...cardInventory,
+      ...input.inventory.filter((item) => !item.cardId && !itemCards.some((card) => card.id === item.id)),
+    ];
+
+    return {
+      ...input,
+      currency: preservedCurrency,
+      spellSlots,
+      weapons,
+      inventory,
+      classResources,
+    };
+  };
+
   const [character, setCharacter] = useState<CharacterSheet>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -43,12 +133,71 @@ export default function App() {
   const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
   const [shortRestModalOpen, setShortRestModalOpen] = useState(false);
 
+  // Combatants & Dice Tray Sync State
+  const [combatants, setCombatants] = useState<Combatant[]>(() => readCombatants(character.id, [
+    { id: 'c-player', name: character.name, type: 'player', initiative: 15, hp: character.hitPoints.current, maxHp: character.hitPoints.max, ac: character.armorClass, conditions: [] },
+    { id: 'c-enemy1', name: 'Caballero Espectral', type: 'enemy', initiative: 15, hp: 45, maxHp: 45, ac: 16, conditions: ['Asustado'] },
+    { id: 'c-ally1', name: 'Lobo Compañero', type: 'ally', initiative: 12, hp: 22, maxHp: 22, ac: 13, conditions: [] },
+  ]));
+  const [diceTrayFormula, setDiceTrayFormula] = useState<string | null>(null);
+  const diceTrayCallbackRef = useRef<((result: number) => void) | null>(null);
+
+  const handleOpenDiceTray = (formula?: string, callback?: (result: number) => void) => {
+    setDiceTrayFormula(formula || null);
+    diceTrayCallbackRef.current = callback || null;
+    setDiceTrayOpen(true);
+  };
+
+  const handleUpdateInitiative = (init: number) => {
+    setCombatants((prev) => {
+      const hasPlayer = prev.some((c) => c.type === 'player' || c.id === 'c-player');
+      let updated: Combatant[];
+      if (hasPlayer) {
+        updated = prev.map((c) =>
+          c.type === 'player' || c.id === 'c-player'
+            ? {
+                ...c,
+                initiative: init,
+                name: character.name,
+                hp: character.hitPoints.current,
+                maxHp: character.hitPoints.max,
+                ac: character.armorClass,
+              }
+            : c
+        );
+      } else {
+        updated = [
+          {
+            id: 'c-player',
+            name: character.name,
+            type: 'player',
+            initiative: init,
+            hp: character.hitPoints.current,
+            maxHp: character.hitPoints.max,
+            ac: character.armorClass,
+            conditions: [],
+          },
+          ...prev,
+        ];
+      }
+      return updated.sort((a, b) => b.initiative - a.initiative);
+    });
+  };
+
   // Visual FX Triggers
   const [isShaking, setIsShaking] = useState(false);
   const [stealthActive, setStealthActive] = useState(false);
   const [auraActive, setAuraActive] = useState(false);
 
   const currentTheme = CLASS_THEMES[character.classId] || CLASS_THEMES.mago;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`grimorio_combatants_${character.id}`, JSON.stringify(combatants));
+    } catch (error) {
+      console.error('No se pudo guardar la iniciativa del combate.', error);
+    }
+  }, [character.id, combatants]);
 
   // Sync all theme palette variables to the document root (camelCase -> kebab-case)
   useEffect(() => {
@@ -61,8 +210,13 @@ export default function App() {
 
   // Update Character with undo push
   const updateCharacter = useCallback((updated: CharacterSheet) => {
+    const before = updated.classResources?.fighter;
+    const synced = syncSheetFromCards(updated);
+    const after = synced.classResources?.fighter;
+    // eslint-disable-next-line no-console
+    // console.log('[updateCharacter] fighter before -> after', { before, after });
     setUndoStack((prev) => [...prev.slice(-15), character]);
-    setCharacter(updated);
+    setCharacter(synced);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch {
@@ -128,7 +282,41 @@ export default function App() {
     });
   };
 
+  const SHORT_REST_SECOND_WIND_MAX = (level: number) => (level >= 10 ? 4 : level >= 4 ? 3 : 2);
+
+  const handleShortRest = () => {
+    updateCharacter({
+      ...character,
+      classResources: {
+        ...character.classResources,
+        ...(character.classId === 'guerrero'
+          ? {
+              fighter: {
+                ...(character.classResources.fighter ?? {
+                  secondWindUsesCurrent: 0,
+                  secondWindUsesMax: 0,
+                  actionSurgeUsed: false,
+                }),
+                secondWindUsesMax: SHORT_REST_SECOND_WIND_MAX(character.level),
+                secondWindUsesCurrent: SHORT_REST_SECOND_WIND_MAX(character.level),
+                actionSurgeUsed: false,
+              },
+            }
+          : {}),
+      },
+    });
+  };
+
   const handleShortRestHealing = (hpRegained: number, diceSpent: number) => {
+    const druidMaxUses =
+      character.level >= 17 ? 4 : character.level >= 6 ? 3 : 2;
+    const druidResources = character.classResources.druid;
+    const normalizedBardResources = normalizeBardicInspiration(
+      character.classResources.bard,
+      character.level,
+      getEffectiveAbilityScore(character.cards, 'CAR', character.abilities.CAR.score),
+    );
+
     updateCharacter({
       ...character,
       hitPoints: {
@@ -138,6 +326,37 @@ export default function App() {
       hitDice: {
         ...character.hitDice,
         current: Math.max(0, character.hitDice.current - diceSpent),
+      },
+      cards: character.cards.map((card) => card.uses?.recharge === 'short'
+        ? { ...card, uses: { ...card.uses, current: card.uses.max } }
+        : card),
+      classResources: {
+        ...character.classResources,
+        ...(character.classId === 'druida'
+          ? {
+              druid: {
+                ...(druidResources ?? {
+                  wildShapeCurrent: druidMaxUses,
+                  wildShapeMax: druidMaxUses,
+                  activeForm: null,
+                  forms: [],
+                }),
+                wildShapeMax: druidMaxUses,
+                wildShapeCurrent: Math.min(
+                  druidMaxUses,
+                  (druidResources?.wildShapeCurrent ?? druidMaxUses) + 1
+                ),
+              },
+            }
+          : {}),
+        ...(character.classId === 'bardo' && character.level >= 5
+          ? {
+              bard: {
+                ...normalizedBardResources,
+                inspirationCurrent: normalizedBardResources.inspirationMax,
+              },
+            }
+          : {}),
       },
     });
   };
@@ -214,7 +433,7 @@ export default function App() {
           onSaveSheet={handleSaveSheet}
           onOpenManageModal={() => setManageModalOpen(true)}
           onOpenNewCharacter={() => setActiveTab('creator')}
-          onOpenDiceTray={() => setDiceTrayOpen(true)}
+          onOpenDiceTray={() => handleOpenDiceTray()}
         />
 
         {/* Content Container */}
@@ -237,20 +456,25 @@ export default function App() {
             <CharacterSheetView
               character={character}
               onUpdate={updateCharacter}
-              onOpenDiceTray={() => setDiceTrayOpen(true)}
+              onOpenDiceTray={handleOpenDiceTray}
               onOpenLevelUp={() => setLevelUpModalOpen(true)}
               onOpenShortRest={() => setShortRestModalOpen(true)}
               onTriggerShake={handleTriggerShake}
               onTriggerAuraPulse={handleTriggerAuraPulse}
               onToggleStealthMode={(active) => setStealthActive(active)}
+              onUpdateInitiative={handleUpdateInitiative}
             />
           )}
 
           {activeTab === 'combat' && (
             <CombatTurnView
+              key={character.id}
               character={character}
               onUpdate={updateCharacter}
-              onOpenDiceTray={() => setDiceTrayOpen(true)}
+              onOpenDiceTray={handleOpenDiceTray}
+              onOpenShortRest={() => setShortRestModalOpen(true)}
+              combatants={combatants}
+              onUpdateCombatants={setCombatants}
             />
           )}
 
@@ -258,7 +482,7 @@ export default function App() {
             <GrimoireCardsView
               character={character}
               onUpdate={updateCharacter}
-              onOpenDiceTray={() => setDiceTrayOpen(true)}
+              onOpenDiceTray={handleOpenDiceTray}
             />
           )}
 
@@ -277,7 +501,20 @@ export default function App() {
       {/* Modals */}
       <DiceTrayModal
         isOpen={diceTrayOpen}
-        onClose={() => setDiceTrayOpen(false)}
+        onClose={() => {
+          setDiceTrayOpen(false);
+          setDiceTrayFormula(null);
+          diceTrayCallbackRef.current = null;
+        }}
+        presetFormula={diceTrayFormula}
+        character={character}
+        onRollComplete={(res) => {
+          if (diceTrayCallbackRef.current) {
+            diceTrayCallbackRef.current(res);
+          }
+          // Clear after handling so next roll can't reuse an old callback.
+          diceTrayCallbackRef.current = null;
+        }}
       />
 
       <ManageSheetModal

@@ -33,7 +33,7 @@ export function ThemedRoot({ cls, element = 'normal', sub = '', state = '', burs
   );
 }
 
-/** Casilla de recurso (espacio de conjuro, uso de rasgo, inspiración...). */
+/** Casilla de recurso (espacio de hechizo, uso de rasgo, inspiración...). */
 export const Pip = ({ used, onClick }: { used: boolean; onClick?: () => void }) => {
   const [on, off] = THEMES[useContext(Ctx)].pip;
   return <span className="pip" data-used={used} onClick={onClick} role="img" aria-label={used ? 'gastado' : 'disponible'}>{used ? off : on}</span>;

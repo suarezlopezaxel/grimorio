@@ -11,7 +11,7 @@ const INFUSIONS = [
   { name: 'Arma Mejorada (+1)', target: 'Arma simple o marcial', bonus: '+1 a tiradas de ataque y daño mágicos' },
   { name: 'Defensa Mejorada (+1)', target: 'Armadura o escudo', bonus: '+1 a la Clase de Armadura' },
   { name: 'Arma Retornante (+1)', target: 'Arma arrojadiza', bonus: 'Regresa volando a tu mano inmediatamente tras impactar' },
-  { name: 'Enfoque Arcano Radiante', target: 'Vara o cetro', bonus: '+1 a tiradas de ataque de conjuro y luz perpetua' },
+  { name: 'Enfoque Arcano Radiante', target: 'Vara o cetro', bonus: '+1 a tiradas de ataque de hechizo y luz perpetua' },
 ];
 
 export const ArtificerInfusionModule: React.FC<Props> = ({ character, onUpdate }) => {

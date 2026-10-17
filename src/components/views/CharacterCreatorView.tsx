@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { getDieSize } from '../../lib/hitDice';
+import { spellSlotsForClassLevel } from '../../lib/classProgression';
+import { abilityForSkill } from '../../lib/skillAbilities';
 import {
   User,
   Shield,
@@ -23,6 +26,29 @@ interface Props {
   onCancel: () => void;
 }
 
+const ABILITY_KEYS: AbilityKey[] = ['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'];
+
+const BACKGROUNDS: Array<{ name: string; abilities: AbilityKey[] }> = [
+  { name: 'Acólito', abilities: ['INT', 'SAB', 'CAR'] },
+  { name: 'Artesano', abilities: ['FUE', 'DES', 'INT'] },
+  { name: 'Charlatán', abilities: ['DES', 'CON', 'CAR'] },
+  { name: 'Criminal', abilities: ['DES', 'CON', 'INT'] },
+  { name: 'Ermitaño', abilities: ['CON', 'SAB', 'CAR'] },
+  { name: 'Escriba', abilities: ['DES', 'INT', 'SAB'] },
+  { name: 'Granjero', abilities: ['FUE', 'CON', 'SAB'] },
+  { name: 'Guarda', abilities: ['FUE', 'INT', 'SAB'] },
+  { name: 'Guía', abilities: ['DES', 'CON', 'SAB'] },
+  { name: 'Marinero', abilities: ['FUE', 'DES', 'SAB'] },
+  { name: 'Mercader', abilities: ['CON', 'INT', 'CAR'] },
+  { name: 'Noble', abilities: ['FUE', 'INT', 'CAR'] },
+  { name: 'Sabio', abilities: ['CON', 'INT', 'SAB'] },
+  { name: 'Soldado', abilities: ['FUE', 'DES', 'CON'] },
+  { name: 'Vagabundo', abilities: ['DES', 'SAB', 'CAR'] },
+  { name: 'Animador', abilities: ['FUE', 'DES', 'CAR'] },
+];
+
+const STANDARD_SCORES = [15, 14, 13, 12, 10, 8];
+
 export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -43,18 +69,36 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
 
   // Ability Scores
   const [abilities, setAbilities] = useState<Record<AbilityKey, number>>({
-    FUE: 10,
+    FUE: 15,
     DES: 14,
-    CON: 14,
+    CON: 13,
     INT: 12,
-    SAB: 16,
+    SAB: 10,
     CAR: 8,
   });
 
-  const [statMethod, setStatMethod] = useState<'standard' | 'pointbuy' | '4d6'>('standard');
+  const [statMethod, setStatMethod] = useState<'standard' | '4d6' | 'manual'>('standard');
+  const [scorePool, setScorePool] = useState(() =>
+    STANDARD_SCORES.map((score, index) => ({ id: `standard-${index}`, score, dice: [] as number[] })),
+  );
+  const [scoreAssignments, setScoreAssignments] = useState<Record<AbilityKey, string>>({
+    FUE: 'standard-0',
+    DES: 'standard-1',
+    CON: 'standard-2',
+    INT: 'standard-3',
+    SAB: 'standard-4',
+    CAR: 'standard-5',
+  });
+  const [backgroundAbilityChoices, setBackgroundAbilityChoices] = useState<AbilityKey[]>(['CON', 'SAB', 'CAR']);
+  const [backgroundIncreaseMode, setBackgroundIncreaseMode] = useState<'2+1' | '1+1+1'>('2+1');
+  const [twoPointAbility, setTwoPointAbility] = useState<AbilityKey>('SAB');
+  const [onePointAbility, setOnePointAbility] = useState<AbilityKey>('CON');
+  const [threePointAbilities, setThreePointAbilities] = useState<AbilityKey[]>(['CON', 'SAB', 'CAR']);
+  const [rollLogs, setRollLogs] = useState<Record<string, number[]>>({});
 
   // Background & Skills
   const [background, setBackground] = useState('Ermitaño');
+  const [customBackgroundName, setCustomBackgroundName] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([
     'Percepción',
     'Supervivencia',
@@ -65,22 +109,103 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
   // Equipment & Homebrew
   const [armorType, setArmorType] = useState('Pieles & Escudo');
   const [baseAC, setBaseAC] = useState(15);
-  const [weaponsList, setWeaponsList] = useState<string[]>(['Cimitarra de la Luna (1d6 + 3)']);
-  const [newWeaponName, setNewWeaponName] = useState('');
-  const [newWeaponDamage, setNewWeaponDamage] = useState('1d8+3');
 
   const [spellsList, setSpellsList] = useState<string[]>(['Producir Llama • Truco']);
   const [newSpellName, setNewSpellName] = useState('');
   const [newSpellLevel, setNewSpellLevel] = useState('Truco');
 
-  const [featsList, setFeatsList] = useState<{ name: string; desc: string }[]>([
-    { name: 'Adepto de la Forma Salvaje', desc: 'Ganas 1 uso adicional de Forma Salvaje por descanso corto.' },
-  ]);
-  const [newFeatName, setNewFeatName] = useState('');
-  const [newFeatDesc, setNewFeatDesc] = useState('');
-
   const getMod = (score: number) => Math.floor((score - 10) / 2);
   const formatMod = (mod: number) => (mod >= 0 ? `+${mod}` : `${mod}`);
+
+  const getBackgroundAbilities = (name: string) =>
+    BACKGROUNDS.find((entry) => entry.name === name)?.abilities
+      ?? (name === 'Personalizado' ? backgroundAbilityChoices : []);
+
+  const selectBackground = (name: string) => {
+    setBackground(name);
+    const choices = BACKGROUNDS.find((entry) => entry.name === name)?.abilities;
+    if (choices) {
+      setBackgroundAbilityChoices(choices);
+      setTwoPointAbility(choices[0]);
+      setOnePointAbility(choices[1]);
+      setThreePointAbilities(choices);
+    }
+  };
+
+  const getAbilityIncreases = (): Partial<Record<AbilityKey, number>> => {
+    const choices = getBackgroundAbilities(background);
+    if (background === 'Personalizado' && choices.length !== 3) return {};
+    if (backgroundIncreaseMode === '2+1') {
+      if (!choices.includes(twoPointAbility) || !choices.includes(onePointAbility)
+        || twoPointAbility === onePointAbility
+        || abilities[twoPointAbility] + 2 > 20
+        || abilities[onePointAbility] + 1 > 20) return {};
+      return { [twoPointAbility]: 2, [onePointAbility]: 1 };
+    }
+    if (threePointAbilities.length !== 3 || new Set(threePointAbilities).size !== 3
+      || threePointAbilities.some((ability) => !choices.includes(ability) || abilities[ability] + 1 > 20)) return {};
+    return Object.fromEntries(threePointAbilities.map((ability) => [ability, 1])) as Partial<Record<AbilityKey, number>>;
+  };
+
+  const abilityIncreases = getAbilityIncreases();
+  const finalAbilities = Object.fromEntries(ABILITY_KEYS.map((ability) => [
+    ability,
+    Math.min(20, abilities[ability] + (abilityIncreases[ability] ?? 0)),
+  ])) as Record<AbilityKey, number>;
+
+  const assignScore = (ability: AbilityKey, scoreId: string) => {
+    const occupiedBy = ABILITY_KEYS.find((key) => key !== ability && scoreAssignments[key] === scoreId);
+    const currentScoreId = scoreAssignments[ability];
+    const score = scorePool.find((entry) => entry.id === scoreId)?.score;
+    if (score == null) return;
+    setScoreAssignments((current) => ({
+      ...current,
+      [ability]: scoreId,
+      ...(occupiedBy && currentScoreId ? { [occupiedBy]: currentScoreId } : {}),
+    }));
+    const displacedScore = scorePool.find((entry) => entry.id === currentScoreId)?.score;
+    setAbilities((current) => ({
+      ...current,
+      [ability]: score,
+      ...(occupiedBy && displacedScore != null ? { [occupiedBy]: displacedScore } : {}),
+    }));
+  };
+
+  const useStandardArray = () => {
+    const pool = STANDARD_SCORES.map((score, index) => ({
+      id: `standard-${index}`,
+      score,
+      dice: [] as number[],
+    }));
+    const assignments = Object.fromEntries(ABILITY_KEYS.map((ability, index) => [ability, pool[index].id])) as Record<AbilityKey, string>;
+    setStatMethod('standard');
+    setScorePool(pool);
+    setScoreAssignments(assignments);
+    setAbilities(Object.fromEntries(ABILITY_KEYS.map((ability, index) => [ability, pool[index].score])) as Record<AbilityKey, number>);
+    setRollLogs({});
+  };
+
+  const useManualScores = () => {
+    setStatMethod('manual');
+    setRollLogs({});
+  };
+
+  const roll4d6Scores = () => {
+    const rolls = ABILITY_KEYS.map((_, index) => {
+      const dice = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+      return {
+        id: `roll-${Date.now()}-${index}`,
+        dice,
+        score: dice.slice().sort((a, b) => b - a).slice(0, 3).reduce((sum, die) => sum + die, 0),
+      };
+    });
+    const assignments = Object.fromEntries(ABILITY_KEYS.map((ability, index) => [ability, rolls[index].id])) as Record<AbilityKey, string>;
+    setStatMethod('4d6');
+    setScorePool(rolls);
+    setScoreAssignments(assignments);
+    setAbilities(Object.fromEntries(ABILITY_KEYS.map((ability, index) => [ability, rolls[index].score])) as Record<AbilityKey, number>);
+    setRollLogs(Object.fromEntries(rolls.map((roll, index) => [ABILITY_KEYS[index], roll.dice])));
+  };
 
   const ALL_SKILLS = [
     'Acrobacias', 'Arcanos', 'Atletismo', 'Engaño', 'Historia',
@@ -99,8 +224,18 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
 
   const handleFinish = () => {
     const profBonus = Math.floor((level - 1) / 4) + 2;
-    const conMod = getMod(abilities.CON);
-    const dieNum = parseInt(hitDie.replace(/\D/g, '')) || 8;
+    if (ABILITY_KEYS.some((ability) =>
+      !Number.isInteger(abilities[ability]) || abilities[ability] < 1 || abilities[ability] > 20,
+    )) {
+      setCurrentStep(3);
+      return;
+    }
+    if (Object.values(abilityIncreases).reduce((total, amount) => total + amount, 0) !== 3) {
+      setCurrentStep(4);
+      return;
+    }
+    const conMod = getMod(finalAbilities.CON);
+    const dieNum = getDieSize(hitDie);
     const maxHp = dieNum + conMod + (level - 1) * (Math.floor(dieNum / 2) + 1 + conMod);
 
     const newSheet: CharacterSheet = {
@@ -113,7 +248,7 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
       xp: 0,
       species,
       alignment,
-      background,
+      background: background === 'Personalizado' ? customBackgroundName.trim() || 'Personalizado' : background,
       portraitUrl,
       inspiration: true,
       elementalAffinity: 'normal',
@@ -121,7 +256,7 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
       armorClass: baseAC,
       manualArmorClass: true,
       armorTypeDescription: armorType,
-      initiativeBonus: getMod(abilities.DES),
+      initiativeBonus: getMod(finalAbilities.DES),
       speed,
       proficiencyBonus: profBonus,
 
@@ -130,17 +265,17 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
       deathSaves: { successes: 0, failures: 0 },
 
       abilities: {
-        FUE: { key: 'FUE', label: 'Fuerza', score: abilities.FUE, proficientSave: false },
-        DES: { key: 'DES', label: 'Destreza', score: abilities.DES, proficientSave: false },
-        CON: { key: 'CON', label: 'Constitución', score: abilities.CON, proficientSave: false },
-        INT: { key: 'INT', label: 'Inteligencia', score: abilities.INT, proficientSave: classId === 'mago' },
-        SAB: { key: 'SAB', label: 'Sabiduría', score: abilities.SAB, proficientSave: classId === 'druida' || classId === 'clerigo' },
-        CAR: { key: 'CAR', label: 'Carisma', score: abilities.CAR, proficientSave: classId === 'bardo' || classId === 'paladin' || classId === 'hechicero' || classId === 'brujo' },
+        FUE: { key: 'FUE', label: 'Fuerza', score: finalAbilities.FUE, proficientSave: false },
+        DES: { key: 'DES', label: 'Destreza', score: finalAbilities.DES, proficientSave: false },
+        CON: { key: 'CON', label: 'Constitución', score: finalAbilities.CON, proficientSave: false },
+        INT: { key: 'INT', label: 'Inteligencia', score: finalAbilities.INT, proficientSave: classId === 'mago' },
+        SAB: { key: 'SAB', label: 'Sabiduría', score: finalAbilities.SAB, proficientSave: classId === 'druida' || classId === 'clerigo' },
+        CAR: { key: 'CAR', label: 'Carisma', score: finalAbilities.CAR, proficientSave: classId === 'bardo' || classId === 'paladin' || classId === 'hechicero' || classId === 'brujo' },
       },
 
       skills: ALL_SKILLS.map((skillName) => ({
         name: skillName,
-        ability: 'DES',
+        ability: abilityForSkill(skillName, 'INT'),
         level: selectedSkills.includes(skillName) ? 'proficient' : 'none',
       })),
 
@@ -149,17 +284,13 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
       defenses: { resistances: [], vulnerabilities: [], immunities: [] },
       inventory: [],
       currency: { cp: 0, sp: 0, ep: 0, gp: 50, pp: 0 },
-      carryingCapacityMax: abilities.FUE * 15,
+      carryingCapacityMax: finalAbilities.FUE * 15,
       attunementSlotsUsed: 0,
 
       spellcastingAbility: classId === 'mago' ? 'INT' : classId === 'druida' || classId === 'clerigo' ? 'SAB' : 'CAR',
-      spellSaveDC: 8 + profBonus + getMod(abilities.SAB),
-      spellAttackBonus: profBonus + getMod(abilities.SAB),
-      spellSlots: [
-        { level: 1, max: 4, used: 0 },
-        { level: 2, max: 2, used: 0 },
-        { level: 3, max: 0, used: 0 },
-      ],
+      spellSaveDC: 8 + profBonus + getMod(finalAbilities.SAB),
+      spellAttackBonus: profBonus + getMod(finalAbilities.SAB),
+      spellSlots: spellSlotsForClassLevel(classId, level),
       knownSpells: spellsList.map((s, i) => ({
         id: `sp-${i}`,
         name: s,
@@ -167,25 +298,11 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
         school: 'Evocación',
         castTime: '1 Acción',
         range: '60 ft',
-        description: 'Conjuro de héroe recién preparado.',
+        description: 'Hechizo de héroe recién preparado.',
         prepared: true,
       })),
-      weapons: weaponsList.map((w, i) => ({
-        id: `wep-${i}`,
-        name: w,
-        attackBonus: 5,
-        damage: '1d8 + 3',
-        damageType: 'Cortante',
-        range: '5 ft',
-        properties: 'Versátil',
-      })),
-      features: featsList.map((f, i) => ({
-        id: `feat-${i}`,
-        name: f.name,
-        source: 'Trasfondo & Rasgo',
-        actionType: 'Pasiva',
-        description: f.desc,
-      })),
+      weapons: [],
+      features: [],
       classResources: {},
       cards: [],
     };
@@ -198,7 +315,7 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
     { num: 2, label: 'Clase', icon: <Shield className="h-4 w-4" /> },
     { num: 3, label: 'Características', icon: <Dices className="h-4 w-4" /> },
     { num: 4, label: 'Trasfondo', icon: <BookOpen className="h-4 w-4" /> },
-    { num: 5, label: 'Equipo & Homebrew', icon: <Swords className="h-4 w-4" /> },
+    { num: 5, label: 'Equipo', icon: <Swords className="h-4 w-4" /> },
   ];
 
   return (
@@ -404,52 +521,112 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
 
                 <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-zinc-800">
                   <button
-                    onClick={() => setStatMethod('standard')}
+                    type="button"
+                    onClick={useStandardArray}
                     className={`px-2 py-0.5 rounded text-[10px] ${
                       statMethod === 'standard' ? 'bg-zinc-700 text-white font-bold' : 'text-zinc-400'
                     }`}
                   >
-                    Estándar
+                    Estándar (15, 14, 13, 12, 10, 8)
                   </button>
                   <button
-                    onClick={() => {
-                      setStatMethod('4d6');
-                      setAbilities({
-                        FUE: Math.floor(Math.random() * 8) + 10,
-                        DES: Math.floor(Math.random() * 8) + 10,
-                        CON: Math.floor(Math.random() * 8) + 10,
-                        INT: Math.floor(Math.random() * 8) + 10,
-                        SAB: Math.floor(Math.random() * 8) + 10,
-                        CAR: Math.floor(Math.random() * 8) + 10,
-                      });
-                    }}
+                    type="button"
+                    onClick={roll4d6Scores}
                     className={`px-2 py-0.5 rounded text-[10px] ${
                       statMethod === '4d6' ? 'bg-zinc-700 text-white font-bold' : 'text-zinc-400'
                     }`}
                   >
-                    Tirada 4d6
+                    Tirar 4d6 seis veces
+                  </button>
+                  <button
+                    type="button"
+                    onClick={useManualScores}
+                    className={`px-2 py-0.5 rounded text-[10px] ${
+                      statMethod === 'manual' ? 'bg-zinc-700 text-white font-bold' : 'text-zinc-400'
+                    }`}
+                  >
+                    Personalizadas
                   </button>
                 </div>
               </div>
 
+              <div className="rounded-lg border border-zinc-800 bg-black/20 p-3">
+                <p className="mb-2 text-[11px] text-zinc-300">
+                  {statMethod === 'manual'
+                    ? 'Introduce manualmente las puntuaciones base (de 1 a 20).'
+                    : statMethod === 'standard'
+                    ? 'Matriz estándar. Asigna cada puntuación una sola vez.'
+                    : 'Cada tirada suma los tres dados más altos; puedes reasignar las seis puntuaciones.'}
+                </p>
+                {ABILITY_KEYS.some((ability) =>
+                  !Number.isInteger(abilities[ability]) || abilities[ability] < 1 || abilities[ability] > 20,
+                ) && (
+                  <p role="alert" className="mb-2 text-[10px] text-rose-300">
+                    Cada puntuación personalizada debe ser un número entero entre 1 y 20.
+                  </p>
+                )}
+                {statMethod !== 'manual' && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {scorePool.map((entry) => (
+                      <div key={entry.id} className="rounded border border-white/10 bg-zinc-900/70 px-2 py-1 text-center">
+                        <span className="font-mono font-bold text-emerald-300">{entry.score}</span>
+                        {entry.dice.length > 0 && (
+                          <span className="ml-1 text-[9px] text-zinc-400">[{entry.dice.join(', ')}; descarta {Math.min(...entry.dice)}]</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as AbilityKey[]).map((key) => {
+                {ABILITY_KEYS.map((key) => {
                   const val = abilities[key];
                   const mod = getMod(val);
                   return (
                     <div key={key} className="rounded-xl border border-zinc-800 bg-[#161828] p-3 text-center">
                       <span className="font-cinzel font-bold text-zinc-300 block mb-1">{key}</span>
-                      <div className="font-cinzel text-2xl font-bold text-emerald-400">{formatMod(mod)}</div>
-                      <input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={val}
-                        onChange={(e) =>
-                          setAbilities({ ...abilities, [key]: parseInt(e.target.value) || 10 })
-                        }
-                        className="w-16 mx-auto mt-2 rounded border border-zinc-700 bg-zinc-900 py-1 text-center font-bold text-white text-xs"
-                      />
+                      <div className="font-cinzel text-2xl font-bold text-emerald-400">{val} <span className="text-xs">({formatMod(mod)})</span></div>
+                      {finalAbilities[key] !== val && (
+                        <div className="text-[10px] text-amber-300">
+                          Trasfondo +{finalAbilities[key] - val} → {finalAbilities[key]}
+                        </div>
+                      )}
+                      {statMethod === 'manual' ? (
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={val}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            setAbilities((current) => ({
+                              ...current,
+                              [key]: e.target.value === '' ? 0 : value,
+                            }));
+                          }}
+                          className="mt-2 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-center font-bold text-white text-xs"
+                          aria-label={`Puntuación personalizada de ${key}`}
+                        />
+                      ) : (
+                        <select
+                          value={scoreAssignments[key]}
+                          onChange={(e) => assignScore(key, e.target.value)}
+                          className="mt-2 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-center font-bold text-white text-xs"
+                          aria-label={`Puntuación base de ${key}`}
+                        >
+                          {scorePool.map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.score}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {rollLogs[key] && (
+                        <span className="mt-1 block text-[9px] text-zinc-500 font-mono">
+                          Tirada: [{rollLogs[key].join(', ')}], se descarta {Math.min(...rollLogs[key])}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -467,14 +644,115 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
                 <span className="text-[11px] text-zinc-400">Selecciona competencias en habilidades</span>
               </div>
 
-              <div>
-                <label className="text-zinc-300 font-semibold block mb-1">Trasfondo Heroico:</label>
-                <input
-                  type="text"
-                  value={background}
-                  onChange={(e) => setBackground(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
-                />
+              <div className="space-y-3 rounded-xl border border-zinc-800 bg-[#161828] p-3">
+                <div>
+                  <label className="text-zinc-300 font-semibold block mb-1">Trasfondo 2024:</label>
+                  <select
+                    value={background}
+                    onChange={(e) => selectBackground(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
+                  >
+                    {BACKGROUNDS.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
+                    <option value="Personalizado">Personalizado</option>
+                  </select>
+                  {background === 'Personalizado' && (
+                    <>
+                      <input
+                        type="text"
+                        value={customBackgroundName}
+                        onChange={(e) => setCustomBackgroundName(e.target.value)}
+                        placeholder="Nombre de trasfondo personalizado"
+                        className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
+                      />
+                      <p className="mt-2 text-[10px] text-zinc-400">Elige las tres características que permite este trasfondo:</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {ABILITY_KEYS.map((ability) => (
+                          <label key={ability} className="flex items-center gap-1 text-zinc-300">
+                            <input
+                              type="checkbox"
+                              checked={backgroundAbilityChoices.includes(ability)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (backgroundAbilityChoices.length < 3) {
+                                    setBackgroundAbilityChoices((current) => [...current, ability]);
+                                  }
+                                } else {
+                                  setBackgroundAbilityChoices((current) => current.filter((choice) => choice !== ability));
+                                  setThreePointAbilities((current) => current.filter((choice) => choice !== ability));
+                                }
+                              }}
+                            />
+                            {ability}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="mt-1 text-[10px] text-zinc-400">Seleccionadas: {backgroundAbilityChoices.length}/3</p>
+                    </>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-zinc-300 font-semibold mb-2">Aumentos de característica del trasfondo:</p>
+                  <div className="flex flex-wrap gap-4 mb-2">
+                    <label className="flex items-center gap-1 text-zinc-300">
+                      <input type="radio" checked={backgroundIncreaseMode === '2+1'} onChange={() => setBackgroundIncreaseMode('2+1')} />
+                      +2 a una y +1 a otra
+                    </label>
+                    <label className="flex items-center gap-1 text-zinc-300">
+                      <input type="radio" checked={backgroundIncreaseMode === '1+1+1'} onChange={() => setBackgroundIncreaseMode('1+1+1')} />
+                      +1 a tres distintas
+                    </label>
+                  </div>
+
+                  {backgroundIncreaseMode === '2+1' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        ['Aumentar +2', twoPointAbility, setTwoPointAbility, 2],
+                        ['Aumentar +1', onePointAbility, setOnePointAbility, 1],
+                      ] as const).map(([label, selected, setSelected, amount]) => (
+                        <label key={label} className="text-[10px] text-zinc-400">
+                          {label}
+                          <select value={selected} onChange={(e) => setSelected(e.target.value as AbilityKey)} className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-white">
+                            {getBackgroundAbilities(background).map((ability) => (
+                              <option key={ability} value={ability} disabled={
+                                (amount === 2 && ability === onePointAbility)
+                                || (amount === 1 && ability === twoPointAbility)
+                                || abilities[ability] + amount > 20
+                              }>
+                                {ability} · base {abilities[ability]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {getBackgroundAbilities(background).map((ability) => (
+                        <label key={ability} className={`flex items-center gap-1 rounded border px-2 py-1.5 ${threePointAbilities.includes(ability) ? 'border-emerald-500/50 text-emerald-200' : 'border-zinc-700 text-zinc-400'}`}>
+                          <input
+                            type="checkbox"
+                            checked={threePointAbilities.includes(ability)}
+                            disabled={!threePointAbilities.includes(ability) && threePointAbilities.length >= 3}
+                            onChange={(e) => setThreePointAbilities((current) =>
+                              e.target.checked
+                                ? [...current, ability]
+                                : current.filter((choice) => choice !== ability),
+                            )}
+                          />
+                          {ability} {abilities[ability]}→{Math.min(20, abilities[ability] + 1)}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {(Object.values(abilityIncreases).reduce((total, amount) => total + amount, 0) !== 3
+                    || (background === 'Personalizado' && backgroundAbilityChoices.length !== 3)) && (
+                    <p role="alert" className="mt-2 text-[10px] text-rose-300">
+                      Completa una combinación válida de aumentos; ninguna puntuación puede superar 20.
+                      {background === 'Personalizado' && backgroundAbilityChoices.length !== 3 ? ' Selecciona exactamente tres características permitidas.' : ''}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -504,12 +782,12 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
             </div>
           )}
 
-          {/* STEP 5: Equipo, Armas, Dotes & Magias */}
+          {/* STEP 5: Equipo & Magias */}
           {currentStep === 5 && (
             <div className="space-y-4 text-xs">
               <div className="border-b border-zinc-800 pb-2">
                 <h3 className="font-cinzel text-base font-bold text-zinc-100">
-                  Paso 5: Equipo, Armas, Dotes & Magias
+                  Paso 5: Equipo
                 </h3>
                 <span className="text-[11px] text-zinc-400">Personalización completa para engarzar</span>
               </div>
@@ -535,52 +813,6 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
                 </div>
               </div>
 
-              {/* Weapons list */}
-              <div>
-                <label className="text-zinc-300 font-semibold block mb-1 font-cinzel">Armas & Ataques:</label>
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="text"
-                    placeholder="Nombre del arma homebrew..."
-                    value={newWeaponName}
-                    onChange={(e) => setNewWeaponName(e.target.value)}
-                    className="flex-1 rounded border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-white text-xs"
-                  />
-                  <button
-                    onClick={() => {
-                      if (newWeaponName.trim()) {
-                        setWeaponsList([...weaponsList, `${newWeaponName.trim()} (${newWeaponDamage})`]);
-                        setNewWeaponName('');
-                      }
-                    }}
-                    className="rounded bg-emerald-600 px-3 py-1.5 font-bold text-stone-950"
-                  >
-                    + Añadir
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {weaponsList.map((w, idx) => (
-                    <div key={idx} className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-200">
-                      {w}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Starter Feat */}
-              <div>
-                <label className="text-zinc-300 font-semibold block mb-1 font-cinzel">
-                  Dotes (Feats) & Rasgos Especiales:
-                </label>
-                <div className="space-y-1.5">
-                  {featsList.map((f, i) => (
-                    <div key={i} className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60">
-                      <strong className="text-zinc-200 block font-cinzel">{f.name}</strong>
-                      <p className="text-[11px] text-zinc-400">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -661,7 +893,7 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
               </div>
               <div>
                 <span className="text-[9px] opacity-75 block">INICIATIVA</span>
-                <span className="font-bold font-mono">{formatMod(getMod(abilities.DES))}</span>
+                <span className="font-bold font-mono">{formatMod(getMod(finalAbilities.DES))}</span>
               </div>
               <div>
                 <span className="text-[9px] opacity-75 block">VELOCIDAD</span>
@@ -678,8 +910,8 @@ export const CharacterCreatorView: React.FC<Props> = ({ onComplete, onCancel }) 
               {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as AbilityKey[]).map((k) => (
                 <div key={k} className="p-1 rounded bg-black/40 border border-white/10">
                   <span className="text-[8px] opacity-75 block font-mono">{k}</span>
-                  <span className="text-xs font-bold font-mono">{abilities[k]}</span>
-                  <span className="text-[9px] block font-mono font-semibold">{formatMod(getMod(abilities[k]))}</span>
+                  <span className="text-xs font-bold font-mono">{finalAbilities[k]}</span>
+                  <span className="text-[9px] block font-mono font-semibold">{formatMod(getMod(finalAbilities[k]))}</span>
                 </div>
               ))}
             </div>

@@ -121,8 +121,45 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
     if (!onUseCard(cardId)) return false;
     if (trackedAction && !resourceWillBeUsed) onBeforeUndoableAction();
     setRoundExpendedCards((previous) => ({ ...previous, [cardId]: true }));
-    if (trackedAction) markActionUsed(trackedAction);
+    if (trackedAction) applyActionUsage(trackedAction, card?.extraTurnUses);
     return true;
+  };
+
+  const applyActionUsage = (
+    action: TrackedAction,
+    grant?: { kind: 'action' | 'bonusAction' | 'reaction'; extraUses: number },
+  ) => {
+    const flag = combatFlagForAction(action);
+
+    onUpdateCombat((prev) => {
+      const next = { ...prev };
+
+      // Primero consumir el uso base de la acción de la tarjeta
+      if (!next[flag]) {
+        next[flag] = true;
+      }
+
+      // Luego aplicar el grant de extraTurnUses si existe
+      if (grant && grant.extraUses > 0) {
+        const grantFlag = combatFlagForAction(grant.kind);
+        const extraKey = grant.kind === 'action'
+          ? 'actionExtraUses'
+          : grant.kind === 'bonusAction'
+            ? 'bonusActionExtraUses'
+            : 'reactionExtraUses';
+
+        if (!next[grantFlag]) {
+          // El recurso base no estaba gastado: restaurar no aplica, solo dar extra
+          next[extraKey] = (next[extraKey] ?? 0) + grant.extraUses;
+        } else {
+          // El recurso base ya estaba gastado: restaurar base + dar extra
+          next[grantFlag] = false;
+          next[extraKey] = (next[extraKey] ?? 0) + grant.extraUses;
+        }
+      }
+
+      return next;
+    });
   };
 
   const markActionUsed = (action: TrackedAction) => {
@@ -141,7 +178,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
     onUpdateCard(cardId, { resourceUsed: Math.max(0, Math.min(card.resourceMax || 0, nextUsed)) });
   };
 
-  // Siguiente Turno: Reinicia las acciones gastadas y avanza asalto
+  // Siguiente Turno: Reinicia las acciones gastadas y avanza turno
   const handleNextTurn = () => {
     setTurnFlash(true);
     setTimeout(() => setTurnFlash(false), 500);
@@ -172,6 +209,9 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         actionUsed: false,
         bonusActionUsed: false,
         reactionUsed: false,
+        actionExtraUses: 0,
+        bonusActionExtraUses: 0,
+        reactionExtraUses: 0,
       } : {}),
     }));
     expiredEffects.forEach((effect) => onNotify(`${effect.name} terminó.`));
@@ -211,15 +251,17 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
 
   const handleToggleSpellSlot = (tierIndex: number, slotIndex: number) => {
     const slot = character.spellSlots[tierIndex];
-    if (slot && slotIndex < slot.current) onBeforeUndoableAction();
+    const cur = slot?.current ?? slot?.max ?? 0;
+    if (slot && slotIndex < cur) onBeforeUndoableAction();
     onUpdateCharacter((prev) => {
       const spellSlots = prev.spellSlots.map((slot, index) => {
         if (index !== tierIndex) return slot;
+        const c = slot.current ?? slot.max ?? 0;
         return {
           ...slot,
-          current: slotIndex < slot.current
-            ? Math.max(0, slot.current - 1)
-            : Math.min(slot.max, slot.current + 1),
+          current: slotIndex < c
+            ? Math.max(0, c - 1)
+            : Math.min(slot.max, c + 1),
         };
       });
       return { ...prev, spellSlots };
@@ -228,7 +270,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
 
   const handleCastSpell = (spell: NonNullable<CharacterSheet['spells']>[number], slotTier: number) => {
     const hasAvailableSlot = character.spellSlots.some(
-      (slot) => slot.tier === slotTier && slot.current > 0,
+      (slot) => slot.tier === slotTier && (slot.current ?? slot.max ?? 0) > 0,
     );
     if (!hasAvailableSlot) return;
 
@@ -259,12 +301,12 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
     }
 
     onUpdateCharacter((prev) => {
-      const slotIndex = prev.spellSlots.findIndex((slot) => slot.tier === slotTier && slot.current > 0);
+      const slotIndex = prev.spellSlots.findIndex((slot) => slot.tier === slotTier && (slot.current ?? slot.max ?? 0) > 0);
       if (slotIndex < 0) return prev;
       return {
         ...prev,
         spellSlots: prev.spellSlots.map((slot, index) => index === slotIndex
-          ? { ...slot, current: slot.current - 1 }
+          ? { ...slot, current: Math.max(0, (slot.current ?? slot.max ?? 0) - 1) }
           : slot),
       };
     });
@@ -357,11 +399,24 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
   // 3. Reacción
   // 4. Movimiento
   const actionCards = cards.filter(
-    (c) => c.actionType === 'Acción' || (!c.actionType && c.category === 'attack')
+    (c) => {
+      const at = c.actionType as string;
+      return at === 'Acción' || at === 'action' || at === 'attack';
+    }
   );
-  const bonusActionCards = cards.filter((c) => c.actionType === 'Acción Adicional');
-  const reactionCards = cards.filter((c) => c.actionType === 'Reacción');
-  const movementCards = cards.filter((c) => c.actionType === 'Movimiento');
+
+  const bonusActionCards = cards.filter((c) => {
+    const at = c.actionType as string;
+    return at === 'Acción Adicional' || at === 'bonusAction';
+  });
+  const reactionCards = cards.filter((c) => {
+    const at = c.actionType as string;
+    return at === 'Reacción' || at === 'reaction';
+  });
+  const movementCards = cards.filter((c) => {
+    const at = c.actionType as string;
+    return at === 'Movimiento' || at === 'move';
+  });
 
   // Fallback cards if some categories don't have user cards
   const standardMovementActions = [
@@ -390,7 +445,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
       reach: 'Uno mismo',
       resourceDesc: 'A voluntad',
       summaryLine: 'Destrabarse - Acción - A voluntad - No provocas ataques de oportunidad este turno.',
-      mechanic: 'Tu movimiento no provoca ataques de oportunidad durante el resto del asalto.',
+      mechanic: 'Tu movimiento no provoca ataques de oportunidad durante el resto del turno.',
     },
   ];
 
@@ -409,13 +464,13 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
           : undefined
       }
     >
-      {/* Top Combat Header: Asalto, Iniciativa, Movimiento Restante & Botón Siguiente Turno */}
+      {/* Top Combat Header: Turno, Iniciativa, Movimiento Restante & Botón Siguiente Turno */}
       <div className="relative overflow-hidden rounded-xl themed-panel bg-transparent shadow-xl border border-white/5 p-4 lg:p-5 mb-6">
         <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[var(--theme-glow,rgba(87,27,193,0.2))] blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Contador de Asalto */}
+            {/* Contador de Turno */}
             <div className="flex items-center gap-2.5 bg-[var(--theme-surface-low)] px-3.5 py-1.5 rounded-lg border border-white/5 shadow-inner">
               <span className="font-runic text-[10px] text-gray-400 uppercase font-bold">
                 Combate
@@ -424,7 +479,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                 <span className="material-symbols-outlined text-base text-[var(--theme-primary,#fbbf24)]">
                   hourglass_top
                 </span>
-                <span>Asalto {combatState.round}</span>
+                <span>Turno {combatState.round}</span>
               </span>
             </div>
 
@@ -499,23 +554,29 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               Automatizar acciones
             </label>
             {([
-              ['actionUsed', 'Acción'],
-              ['bonusActionUsed', 'Adicional'],
-              ['reactionUsed', 'Reacción'],
-            ] as const).map(([stateKey, label]) => (
-              <button
-                key={stateKey}
-                onClick={() => onUpdateCombat((prev) => ({ ...prev, [stateKey]: !prev[stateKey] }))}
-                className={`px-2 py-1.5 rounded border text-[10px] font-bold transition-colors ${
-                  combatState[stateKey]
-                    ? 'bg-red-500/20 border-red-500/40 text-red-300'
-                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                }`}
-                title={`Marcar ${label}`}
-              >
-                {label}: {combatState[stateKey] ? 'Gastada' : 'Libre'}
-              </button>
-            ))}
+              ['actionUsed', 'Acción', combatState.actionExtraUses],
+              ['bonusActionUsed', 'Adicional', combatState.bonusActionExtraUses],
+              ['reactionUsed', 'Reacción', combatState.reactionExtraUses],
+            ] as const).map(([stateKey, label, extra]) => {
+              const isUsed = combatState[stateKey];
+              const hasExtra = (extra ?? 0) > 0;
+              return (
+                <button
+                  key={stateKey}
+                  onClick={() => onUpdateCombat((prev) => ({ ...prev, [stateKey]: !prev[stateKey] }))}
+                  className={`px-2 py-1.5 rounded border text-[10px] font-bold transition-colors ${
+                    isUsed && !hasExtra
+                      ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                      : hasExtra
+                        ? 'bg-[var(--theme-secondary-container,#571bc1)]/40 border-[var(--theme-secondary,#d0bcff)]/40 text-[var(--theme-on-secondary-container,#e9ddff)]'
+                        : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  }`}
+                  title={`Marcar ${label}`}
+                >
+                  {label}: {hasExtra ? `Extra (+${extra})` : isUsed ? 'Gastada' : 'Libre'}
+                </button>
+              );
+            })}
             <button
               onClick={handleShortRest}
               className="px-2.5 py-1.5 rounded bg-[#211e28] hover:bg-[#2b2932] text-gray-300 text-xs border border-white/5"
@@ -536,7 +597,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               onClick={handleNextTurn}
               id="btn-next-turn"
               className="group flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--theme-primary,#fbbf24)] text-[#261a00] font-bold text-xs transition-all hover:brightness-110 shadow-lg cursor-pointer active:scale-95"
-              title="Avanza al siguiente asalto y reinicia todas las acciones gastadas"
+              title="Avanza al siguiente turno y reinicia todas las acciones gastadas"
             >
               <span className="material-symbols-outlined text-base group-hover:rotate-45 transition-transform">
                 swords
@@ -615,7 +676,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               onClick={() => addCommonEffect(preset.name, preset.rounds)}
               className="rounded border border-[var(--theme-secondary,#d0bcff)]/20 bg-[#211e28] px-2.5 py-1 text-[11px] text-[var(--theme-secondary,#d0bcff)] hover:bg-white/5"
             >
-              + {preset.name} ({preset.rounds} asaltos)
+              + {preset.name} ({preset.rounds} turnos)
             </button>
           ))}
         </div>
@@ -638,7 +699,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               disabled={newEffectUnlimited}
               className="w-14 rounded border border-white/10 bg-[#211e28] px-1.5 py-1 text-xs text-white disabled:opacity-50"
             />
-            asaltos
+            turnos
           </label>
           <label className="flex items-center gap-1 text-[10px] text-gray-300">
             <input
@@ -682,7 +743,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-300">
-                    {effect.roundsRemaining === null ? 'Sin límite' : `${effect.roundsRemaining} asaltos`}
+                    {effect.roundsRemaining === null ? 'Sin límite' : `${effect.roundsRemaining} turnos`}
                   </span>
                   <button
                     type="button"
@@ -704,23 +765,23 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         )}
       </section>
 
-      <section className="mb-6 grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-4" aria-label="Conjuros y espacios de conjuro">
+      <section className="mb-6 grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-4" aria-label="Hechizos y espacios de hechizo">
         <div className="bg-transparent p-4 rounded-xl border border-[var(--theme-secondary,#d0bcff)]/20">
-          <h2 className="font-garamond text-lg text-white font-bold mb-3">Conjuros</h2>
+          <h2 className="font-garamond text-lg text-white font-bold mb-3">Hechizos</h2>
           {(character.spells || []).length === 0 ? (
-            <p className="text-xs text-gray-400">No hay conjuros registrados en la hoja.</p>
+            <p className="text-xs text-gray-400">No hay hechizos registrados en la hoja.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {character.spells?.map((spell) => {
                 const damage = parseDiceFormula(spell.damageOrHeal);
                 const canCriticallyHit = /ataque|\+/i.test(spell.attackOrDc);
                 const eligibleSlots = character.spellSlots.filter((slot) => slot.tier >= spell.level);
-                const defaultSlotTier = eligibleSlots.find((slot) => slot.current > 0)?.tier ?? spell.level;
+                const defaultSlotTier = eligibleSlots.find((slot) => (slot.current ?? 0) > 0)?.tier ?? spell.level;
                 const castTier = spellCastingLevels[spell.id] ?? defaultSlotTier;
                 const usedSlotLevel = lastCastLevels[spell.id] ?? castTier;
                 const castDamage = upcastDamage(spell.damageOrHeal, spell.upcast, spell.level, usedSlotLevel);
                 const canCast = spell.level === 0 || eligibleSlots.some(
-                  (slot) => slot.tier === castTier && slot.current > 0
+                  (slot) => slot.tier === castTier && (slot.current ?? 0) > 0
                 );
                 return (
                   <article key={spell.id} className="bg-[#211e28] p-3 rounded-lg border border-white/10">
@@ -730,7 +791,13 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                         {spell.level === 0 ? 'Truco' : `Nivel ${spell.level}`}
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-1">{spell.castingTime} · {spell.range} · {spell.damageOrHeal}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {spell.castingTime} · {typeof (spell as any).range === 'string'
+                        ? (spell as any).range
+                        : (spell as any).range?.normal != null && (spell as any).range?.long != null
+                          ? `${(spell as any).range.normal}/${(spell as any).range.long}`
+                          : ''} · {spell.damageOrHeal}
+                    </p>
                     {spell.level > 0 && (
                       <p className="mt-1 text-[10px] text-[var(--theme-secondary,#d0bcff)]">
                         Espacio {lastCastLevels[spell.id] ? 'usado' : 'seleccionado'}: nivel {usedSlotLevel}
@@ -814,24 +881,27 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
         </div>
 
         <div className="bg-transparent p-4 rounded-xl border border-white/10">
-          <h2 className="font-garamond text-lg text-white font-bold mb-3">Espacios de conjuro</h2>
+          <h2 className="font-garamond text-lg text-white font-bold mb-3">Espacios de hechizo</h2>
           <div className="flex flex-col gap-2">
-            {character.spellSlots.map((slot, tierIndex) => (
+            {character.spellSlots.map((slot, tierIndex) => {
+              const cur = slot.current ?? slot.max ?? 0;
+              return (
               <div key={slot.tier} className="flex items-center justify-between gap-2 bg-[#211e28] px-3 py-2 rounded-lg">
-                <span className="text-xs text-gray-200">Nivel {slot.tier} <span className="text-gray-500">({slot.current}/{slot.max})</span></span>
+                <span className="text-xs text-gray-200">Nivel {slot.tier} <span className="text-gray-500">({cur}/{slot.max})</span></span>
                 <div className="flex gap-1">
                   {Array.from({ length: slot.max }).map((_, slotIndex) => (
                     <button
                       key={slotIndex}
                       type="button"
                       onClick={() => handleToggleSpellSlot(tierIndex, slotIndex)}
-                      aria-label={`${slotIndex < slot.current ? 'Gastar' : 'Recuperar'} espacio de nivel ${slot.tier}`}
-                      className={`w-4 h-4 rounded-full border border-[var(--theme-secondary,#d0bcff)] ${slotIndex < slot.current ? 'bg-[var(--theme-secondary,#d0bcff)]' : 'bg-transparent'}`}
+                      aria-label={`${slotIndex < cur ? 'Gastar' : 'Recuperar'} espacio de nivel ${slot.tier}`}
+                      className={`w-4 h-4 rounded-full border border-[var(--theme-secondary,#d0bcff)] ${slotIndex < cur ? 'bg-[var(--theme-secondary,#d0bcff)]' : 'bg-transparent'}`}
                     />
                   ))}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>
@@ -882,7 +952,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Nombre de la Habilidad / Conjuro */}
+                  {/* Nombre de la Habilidad / Hechizo */}
                   <div className="flex items-center justify-between mb-1.5">
                     <h4 className="font-garamond text-base font-bold text-white group-hover:text-red-300 transition-colors">
                       {card.title}
@@ -969,7 +1039,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                   <div className="flex items-center justify-between text-[10px] text-gray-400 pt-1 border-t border-white/5">
                     <span>{card.recharge || 'Recarga en descanso'}</span>
                     <span className={isExpended ? 'text-red-400 font-bold' : 'text-emerald-400'}>
-                      {isExpended ? 'Gastada este asalto' : 'Disponible'}
+                      {isExpended ? 'Gastada este turno' : 'Disponible'}
                     </span>
                   </div>
                 </div>
@@ -1098,7 +1168,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
                   <div className="flex items-center justify-between text-[10px] text-gray-400 pt-1 border-t border-white/5">
                     <span>{card.recharge || 'Descanso Corto'}</span>
                     <span className={isExpended ? 'text-red-400 font-bold' : 'text-purple-300'}>
-                      {isExpended ? 'Gastada este asalto' : 'Lista para usar'}
+                      {isExpended ? 'Gastada este turno' : 'Lista para usar'}
                     </span>
                   </div>
                 </div>
@@ -1119,7 +1189,7 @@ export const CombatTurnView: React.FC<CombatTurnViewProps> = ({
               </h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 uppercase">
-              1 por asalto
+              1 por turno
             </span>
           </div>
 

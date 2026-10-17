@@ -1,14 +1,62 @@
 import React, { useState } from 'react';
-import { PawPrint, Shield, Heart, Zap, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { CharacterSheet, BeastForm } from '../../types/character';
+import {
+  CheckCircle2,
+  Heart,
+  Leaf,
+  PenLine,
+  PawPrint,
+  Plus,
+  Shield,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { BeastForm, CharacterSheet } from '../../types/character';
 
 interface Props {
   character: CharacterSheet;
   onUpdate: (updated: CharacterSheet) => void;
 }
 
-const BEAST_PRESETS: BeastForm[] = [
+interface BeastFormDraft {
+  name: string;
+  cr: string;
+  hp: string;
+  ac: string;
+  speed: string;
+  senses: string;
+  attacks: string;
+  size: string;
+  creatureType: string;
+  skills: string;
+  resistances: string;
+  vulnerabilities: string;
+  immunities: string;
+  traits: string;
+  notes: string;
+}
+
+const EMPTY_FORM: BeastFormDraft = {
+  name: '',
+  cr: '',
+  hp: '',
+  ac: '',
+  speed: '',
+  senses: '',
+  attacks: '',
+  size: '',
+  creatureType: '',
+  skills: '',
+  resistances: '',
+  vulnerabilities: '',
+  immunities: '',
+  traits: '',
+  notes: '',
+};
+
+const LEGACY_BEAST_FORMS: BeastForm[] = [
   {
+    id: 'starter-brown-bear',
     name: 'Oso Pardo',
     cr: 'CR 1',
     hp: 34,
@@ -18,7 +66,8 @@ const BEAST_PRESETS: BeastForm[] = [
     senses: 'Olfato agudo (ventaja en percepción de olor)',
   },
   {
-    name: 'Lobo Huargo (Dire Wolf)',
+    id: 'starter-dire-wolf',
+    name: 'Lobo Huargo',
     cr: 'CR 1',
     hp: 37,
     ac: 14,
@@ -27,6 +76,7 @@ const BEAST_PRESETS: BeastForm[] = [
     senses: 'Oído y olfato agudo, Tácticas de Manada',
   },
   {
+    id: 'starter-giant-eagle',
     name: 'Águila Gigante',
     cr: 'CR 1',
     hp: 26,
@@ -36,6 +86,7 @@ const BEAST_PRESETS: BeastForm[] = [
     senses: 'Vista aguda (ventaja en percepción)',
   },
   {
+    id: 'starter-shadow-panther',
     name: 'Pantera de Sombras',
     cr: 'CR 1/4',
     hp: 18,
@@ -46,236 +97,398 @@ const BEAST_PRESETS: BeastForm[] = [
   },
 ];
 
+const makeLegacyId = (form: BeastForm) =>
+  `legacy-${form.name.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+const withStableId = (form: BeastForm): BeastForm => ({
+  ...form,
+  id: form.id || makeLegacyId(form),
+});
+
+const createFormId = () =>
+  `beast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const draftFromForm = (form: BeastForm): BeastFormDraft => ({
+  name: form.name,
+  cr: form.cr,
+  hp: String(form.hp),
+  ac: String(form.ac),
+  speed: form.speed,
+  senses: form.senses,
+  attacks: form.attacks,
+  size: form.size ?? '',
+  creatureType: form.creatureType ?? '',
+  skills: form.skills ?? '',
+  resistances: form.resistances ?? '',
+  vulnerabilities: form.vulnerabilities ?? '',
+  immunities: form.immunities ?? '',
+  traits: form.traits ?? '',
+  notes: form.notes ?? '',
+});
+
+const toBeastForm = (draft: BeastFormDraft, id: string): BeastForm => ({
+  id,
+  name: draft.name.trim(),
+  cr: draft.cr.trim(),
+  hp: Number(draft.hp),
+  ac: Number(draft.ac),
+  speed: draft.speed.trim(),
+  senses: draft.senses.trim(),
+  attacks: draft.attacks.trim(),
+  size: draft.size.trim(),
+  creatureType: draft.creatureType.trim(),
+  skills: draft.skills.trim(),
+  resistances: draft.resistances.trim(),
+  vulnerabilities: draft.vulnerabilities.trim(),
+  immunities: draft.immunities.trim(),
+  traits: draft.traits.trim(),
+  notes: draft.notes.trim(),
+});
+
 export const DruidWildShapeModule: React.FC<Props> = ({ character, onUpdate }) => {
-  const druidData = character.classResources.druid || {
+  const druidData = character.classResources.druid ?? {
     wildShapeCurrent: 2,
     wildShapeMax: 2,
     activeForm: null,
+    forms: [],
   };
+  const maxUses = character.level >= 17 ? 4 : character.level >= 6 ? 3 : 2;
+  const currentUses = Math.min(druidData.wildShapeCurrent ?? maxUses, maxUses);
 
-  const [selectedBeast, setSelectedBeast] = useState<BeastForm>(BEAST_PRESETS[0]);
-
-  const toggleForm = (beast: BeastForm) => {
-    if (druidData.activeForm?.name === beast.name) {
-      // Revert to normal form
-      onUpdate({
-        ...character,
-        classResources: {
-          ...character.classResources,
-          druid: {
-            ...druidData,
-            activeForm: null,
-          },
-        },
-      });
+  const forms = (druidData.forms ?? LEGACY_BEAST_FORMS).map(withStableId);
+  let activeForm = druidData.activeForm ? withStableId(druidData.activeForm) : null;
+  if (activeForm) {
+    const matchingForm = forms.find(
+      (form) => form.id === activeForm?.id || form.name === activeForm?.name
+    );
+    if (matchingForm) {
+      activeForm = { ...activeForm, id: matchingForm.id };
     } else {
-      // Consume 1 wild shape use if not already transformed
-      const newUses = druidData.activeForm ? druidData.wildShapeCurrent : Math.max(0, druidData.wildShapeCurrent - 1);
-      onUpdate({
-        ...character,
-        classResources: {
-          ...character.classResources,
-          druid: {
-            ...druidData,
-            wildShapeCurrent: newUses,
-            activeForm: beast,
-          },
-        },
-      });
+      forms.push(activeForm);
     }
-  };
+  }
 
-  const restoreWildShape = () => {
+  const [draft, setDraft] = useState<BeastFormDraft>(EMPTY_FORM);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState('');
+
+  const updateDruid = (updates: Partial<typeof druidData>) => {
     onUpdate({
       ...character,
       classResources: {
         ...character.classResources,
         druid: {
           ...druidData,
-          wildShapeCurrent: druidData.wildShapeMax,
+          ...updates,
+          wildShapeCurrent: Math.min(
+            updates.wildShapeCurrent ?? currentUses,
+            maxUses
+          ),
+          wildShapeMax: maxUses,
+          forms: updates.forms ?? forms,
         },
       },
     });
   };
 
-  // Toggle a spell slot from blooming bud to wilted twig
-  const toggleSpellSlot = (slotLevel: number, index: number) => {
-    const slots = [...character.spellSlots];
-    const target = slots.find((s) => s.level === slotLevel);
-    if (!target) return;
+  const beginAdd = () => {
+    setDraft(EMPTY_FORM);
+    setEditingId(null);
+    setFormError('');
+    setIsFormOpen(true);
+  };
 
-    if (index < target.used) {
-      // restore
-      target.used -= 1;
-    } else {
-      // spend
-      target.used += 1;
+  const closeForm = () => {
+    setDraft(EMPTY_FORM);
+    setEditingId(null);
+    setFormError('');
+    setIsFormOpen(false);
+  };
+
+  const beginEdit = (form: BeastForm) => {
+    setDraft(draftFromForm(form));
+    setEditingId(form.id ?? makeLegacyId(form));
+    setFormError('');
+    setIsFormOpen(true);
+  };
+
+  const saveForm = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const hp = Number(draft.hp);
+    const ac = Number(draft.ac);
+    if (!draft.name.trim() || !draft.speed.trim()) {
+      setFormError('El nombre y la velocidad son obligatorios.');
+      return;
+    }
+    if (!Number.isFinite(hp) || hp < 1 || !Number.isFinite(ac) || ac < 1) {
+      setFormError('Los PG y la CA deben ser números mayores que cero.');
+      return;
     }
 
-    onUpdate({
-      ...character,
-      spellSlots: slots,
+    const id = editingId ?? createFormId();
+    const updatedForm = toBeastForm(draft, id);
+    const updatedForms = editingId
+      ? forms.map((form) => (form.id === editingId ? updatedForm : form))
+      : [...forms, updatedForm];
+    const updatedActiveForm =
+      activeForm?.id === editingId ? updatedForm : activeForm;
+
+    updateDruid({ forms: updatedForms, activeForm: updatedActiveForm });
+    closeForm();
+  };
+
+  const removeForm = (form: BeastForm) => {
+    if (!window.confirm(`¿Retirar "${form.name}" del repertorio de formas?`)) return;
+    const id = form.id ?? makeLegacyId(form);
+    const updatedForms = forms.filter((knownForm) => knownForm.id !== id);
+    updateDruid({
+      forms: updatedForms,
+      activeForm: activeForm?.id === id ? null : activeForm,
+    });
+    if (editingId === id) closeForm();
+  };
+
+  const toggleForm = (form: BeastForm) => {
+    const id = form.id ?? makeLegacyId(form);
+    if (activeForm?.id === id) {
+      updateDruid({ activeForm: null });
+      return;
+    }
+    if (currentUses <= 0) return;
+    updateDruid({
+      wildShapeCurrent: currentUses - 1,
+      activeForm: { ...form, id },
     });
   };
 
+  const updateDraft = (field: keyof BeastFormDraft, value: string) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    if (formError) setFormError('');
+  };
+
+  const inputClass =
+    'w-full rounded-lg border border-emerald-800/70 bg-[#09150d]/90 px-3 py-2 text-sm text-emerald-50 placeholder:text-emerald-200/35 outline-none focus:border-emerald-400';
+  const labelClass = 'flex flex-col gap-1 text-xs font-medium text-emerald-200/90';
+
   return (
     <div className="relative overflow-hidden rounded-xl border border-emerald-500/40 bg-gradient-to-br from-[#122616]/90 via-[#0d1c10]/95 to-[#1a331f]/90 p-5 shadow-xl backdrop-blur-md">
-      {/* Woodgrain & Vine Frame Accents */}
       <div className="pointer-events-none absolute -right-6 -bottom-6 w-32 h-32 opacity-15 text-emerald-400">
-        <svg viewBox="0 0 100 100" fill="currentColor">
+        <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
           <path d="M10,90 Q40,40 90,20 Q60,70 10,90 Z" />
         </svg>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4 relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-emerald-300 shadow-inner">
-            <PawPrint className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-cinzel text-base font-bold text-emerald-200 tracking-wide">
-                Forma Salvaje (Círculo de la Luna)
-              </h3>
-              <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 border border-emerald-500/40">
-                {druidData.wildShapeCurrent} / {druidData.wildShapeMax} Usos
-              </span>
+      <div className="relative z-10">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-400/50 bg-emerald-500/10 text-emerald-300 shadow-inner">
+              <PawPrint className="h-5 w-5" />
             </div>
-            <p className="text-xs text-emerald-200/70">
-              {druidData.activeForm
-                ? `Forma activa: ${druidData.activeForm.name} (Ganas sus PG y sentidos)`
-                : 'Selecciona una bestia en tarjeta de tronco para metamorfosearte'}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-cinzel text-base font-bold tracking-wide text-emerald-200">
+                  Forma Salvaje
+                </h3>
+                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                  {currentUses} / {maxUses} Usos
+                </span>
+              </div>
+              <p className="text-xs text-emerald-200/70">
+                {activeForm
+                  ? `Forma activa: ${activeForm.name}`
+                  : 'Administra tu repertorio y elige una forma para transformarte.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={beginAdd}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-500"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Agregar forma
+            </button>
           </div>
         </div>
 
-        <button
-          onClick={restoreWildShape}
-          className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-400 transition"
-          title="Recuperar en descanso corto"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span>Comunión Arbórea (Recargar)</span>
-        </button>
-      </div>
-
-      {/* Beast Selector on Tree Trunk Cut Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
-        {BEAST_PRESETS.map((beast) => {
-          const isActive = druidData.activeForm?.name === beast.name;
-          const isSelected = selectedBeast.name === beast.name;
-
-          return (
-            <div
-              key={beast.name}
-              onClick={() => setSelectedBeast(beast)}
-              className={`relative cursor-pointer rounded-xl border-2 p-3 transition-all duration-200 ${
-                isActive
-                  ? 'border-amber-400 bg-gradient-to-b from-[#3a2c16] via-[#241a0d] to-[#3a2c16] shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.02]'
-                  : isSelected
-                  ? 'border-emerald-400 bg-gradient-to-b from-[#1b3320] to-[#122215]'
-                  : 'border-emerald-900/60 bg-gradient-to-b from-[#142618]/70 to-[#0e1c11]/80 hover:border-emerald-600/70'
-              }`}
-              style={{
-                backgroundImage: `radial-gradient(ellipse at center, rgba(62,39,35,0.3) 0%, rgba(20,36,22,0.8) 100%)`,
-              }}
-            >
-              {/* Tree trunk concentric rings subtle overlay */}
-              <div className="pointer-events-none absolute inset-0 rounded-xl border border-amber-900/20" />
-
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-cinzel text-xs font-bold text-amber-200">{beast.name}</span>
-                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {beast.cr}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs mb-2">
-                <div className="flex items-center gap-1 text-emerald-300">
-                  <Heart className="h-3 w-3 text-red-400" />
-                  <span className="font-bold">{beast.hp} PG</span>
-                </div>
-                <div className="flex items-center gap-1 text-emerald-300">
-                  <Shield className="h-3 w-3 text-blue-400" />
-                  <span>{beast.ac} CA</span>
-                </div>
-              </div>
-
-              <div className="text-[10px] text-emerald-200/70 mb-2 line-clamp-2">{beast.attacks}</div>
-
+        {isFormOpen && (
+          <form
+            onSubmit={saveForm}
+            className="mb-5 rounded-xl border border-emerald-500/30 bg-[#08140c]/80 p-4"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="font-cinzel text-sm font-bold text-emerald-200">
+                {editingId ? 'Editar forma' : 'Nueva forma'}
+              </h4>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleForm(beast);
-                }}
-                disabled={!isActive && druidData.wildShapeCurrent <= 0}
-                className={`w-full py-1.5 px-2 rounded-lg text-[11px] font-bold tracking-wide transition flex items-center justify-center gap-1.5 ${
-                  isActive
-                    ? 'bg-amber-500 text-stone-950 hover:bg-amber-400 shadow-md'
-                    : druidData.wildShapeCurrent > 0
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                    : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                }`}
+                type="button"
+                onClick={closeForm}
+                className="rounded p-1 text-emerald-200/70 hover:bg-emerald-900/50 hover:text-emerald-100"
+                aria-label="Cerrar formulario"
               >
-                {isActive ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" /> En Forma (Revertir)
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" /> Metamorfosear
-                  </>
-                )}
+                <X className="h-4 w-4" />
               </button>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Botanical Blooming Spell Slots */}
-      <div className="mt-4 rounded-xl border border-emerald-500/30 bg-[#0c180e]/90 p-4 shadow-inner">
-        <div className="flex items-center justify-between text-xs text-emerald-300 mb-3">
-          <span className="flex items-center gap-1.5 font-cinzel font-semibold">
-            🌱 Espacios de Conjuro Primordiales (Brotes Florales):
-          </span>
-          <span className="text-[11px] text-emerald-200/60 italic">
-            Florecen al estar disponibles y se marchitan al gastarse
-          </span>
-        </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className={`${labelClass} sm:col-span-2`}>
+                Nombre *
+                <input className={inputClass} value={draft.name} onChange={(e) => updateDraft('name', e.target.value)} autoFocus />
+              </label>
+              <label className={labelClass}>
+                VD / categoría
+                <input className={inputClass} value={draft.cr} onChange={(e) => updateDraft('cr', e.target.value)} placeholder="Texto libre" />
+              </label>
+              <label className={labelClass}>
+                Tamaño
+                <input className={inputClass} value={draft.size} onChange={(e) => updateDraft('size', e.target.value)} placeholder="Mediano" />
+              </label>
+              <label className={labelClass}>
+                Tipo de criatura
+                <input className={inputClass} value={draft.creatureType} onChange={(e) => updateDraft('creatureType', e.target.value)} placeholder="Bestia" />
+              </label>
+              <label className={labelClass}>
+                Clase de Armadura *
+                <input className={inputClass} type="number" min="1" value={draft.ac} onChange={(e) => updateDraft('ac', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Puntos de golpe *
+                <input className={inputClass} type="number" min="1" value={draft.hp} onChange={(e) => updateDraft('hp', e.target.value)} />
+              </label>
+              <label className={`${labelClass} sm:col-span-2`}>
+                Velocidad *
+                <input className={inputClass} value={draft.speed} onChange={(e) => updateDraft('speed', e.target.value)} placeholder="40 pies, trepar 20 pies" />
+              </label>
+              <label className={labelClass}>
+                Sentidos
+                <input className={inputClass} value={draft.senses} onChange={(e) => updateDraft('senses', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Habilidades
+                <input className={inputClass} value={draft.skills} onChange={(e) => updateDraft('skills', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Resistencias
+                <input className={inputClass} value={draft.resistances} onChange={(e) => updateDraft('resistances', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Vulnerabilidades
+                <input className={inputClass} value={draft.vulnerabilities} onChange={(e) => updateDraft('vulnerabilities', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Inmunidades
+                <input className={inputClass} value={draft.immunities} onChange={(e) => updateDraft('immunities', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Rasgos
+                <textarea className={inputClass} rows={2} value={draft.traits} onChange={(e) => updateDraft('traits', e.target.value)} />
+              </label>
+              <label className={labelClass}>
+                Acciones / ataques
+                <textarea className={inputClass} rows={2} value={draft.attacks} onChange={(e) => updateDraft('attacks', e.target.value)} />
+              </label>
+              <label className={`${labelClass} sm:col-span-2`}>
+                Notas adicionales
+                <textarea className={inputClass} rows={2} value={draft.notes} onChange={(e) => updateDraft('notes', e.target.value)} />
+              </label>
+            </div>
 
-        <div className="space-y-2">
-          {character.spellSlots.slice(0, 3).map((slot) => {
-            if (slot.max === 0) return null;
-            return (
-              <div key={slot.level} className="flex items-center justify-between bg-emerald-950/30 rounded-lg px-3 py-1.5 border border-emerald-800/40">
-                <span className="text-xs font-semibold text-emerald-200">
-                  Nivel {slot.level} ({slot.max - slot.used} / {slot.max})
-                </span>
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: slot.max }).map((_, i) => {
-                    const isAvailable = i >= slot.used;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => toggleSpellSlot(slot.level, i)}
-                        className={`group relative flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-300 cursor-pointer ${
-                          isAvailable
-                            ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 hover:scale-110 shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                            : 'border-amber-900/60 bg-stone-900/80 text-amber-800/50 hover:border-amber-700'
-                        }`}
-                        title={isAvailable ? 'Espacio disponible (Florecido)' : 'Espacio marchito (Gastado)'}
-                      >
-                        <span className="text-sm select-none transition-transform group-hover:rotate-12">
-                          {isAvailable ? '🌸' : '🍂'}
-                        </span>
+            {formError && <p className="mt-3 text-xs font-medium text-red-300" role="alert">{formError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={closeForm} className="rounded-lg border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950/60">
+                Cancelar
+              </button>
+              <button type="submit" className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500">
+                {editingId ? 'Guardar cambios' : 'Guardar forma'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {forms.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-emerald-700/60 bg-emerald-950/20 px-4 py-8 text-center">
+            <Leaf className="mx-auto mb-2 h-6 w-6 text-emerald-500/70" />
+            <p className="text-sm font-medium text-emerald-200">Tu repertorio está vacío</p>
+            <p className="mt-1 text-xs text-emerald-200/60">Agrega una forma y captura sus estadísticas según las reglas y decisiones de tu mesa.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {forms.map((form) => {
+              const id = form.id ?? makeLegacyId(form);
+              const isActive = activeForm?.id === id;
+              const canTransform = isActive || currentUses > 0;
+
+              return (
+                <article
+                  key={id}
+                  className={`rounded-xl border p-3 transition ${
+                    isActive
+                      ? 'border-amber-400/80 bg-gradient-to-b from-[#342814]/90 to-[#1f190e]/90 shadow-[0_0_14px_rgba(245,158,11,0.18)]'
+                      : 'border-emerald-800/70 bg-gradient-to-b from-[#142618]/80 to-[#0e1c11]/90 hover:border-emerald-600/70'
+                  }`}
+                >
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-cinzel text-sm font-bold text-amber-100">{form.name}</h4>
+                      <p className="text-[10px] text-emerald-200/60">
+                        {[form.size, form.creatureType, form.cr].filter(Boolean).join(' · ') || 'Forma personalizada'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button type="button" onClick={() => beginEdit(form)} className="rounded p-1.5 text-emerald-200/70 hover:bg-emerald-900/60 hover:text-emerald-100" aria-label={`Editar ${form.name}`} title="Editar">
+                        <PenLine className="h-3.5 w-3.5" />
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      <button type="button" onClick={() => removeForm(form)} className="rounded p-1.5 text-red-300/70 hover:bg-red-950/60 hover:text-red-200" aria-label={`Retirar ${form.name}`} title="Retirar">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mb-2 flex items-center gap-4 text-xs text-emerald-200">
+                    <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3 text-red-400" />{form.hp} PG</span>
+                    <span className="inline-flex items-center gap-1"><Shield className="h-3 w-3 text-sky-300" />{form.ac} CA</span>
+                  </div>
+                  <p className="mb-2 text-[11px] text-emerald-200/80">Velocidad: {form.speed}</p>
+                  {form.attacks && <p className="mb-2 line-clamp-2 text-[11px] text-emerald-100/70">{form.attacks}</p>}
+
+                  <details className="mb-3 text-[11px] text-emerald-100/70">
+                    <summary className="cursor-pointer select-none text-emerald-300/80 hover:text-emerald-200">Ver estadísticas completas</summary>
+                    <div className="mt-2 space-y-1.5 border-t border-emerald-800/50 pt-2">
+                      {form.senses && <p><strong className="text-emerald-200">Sentidos:</strong> {form.senses}</p>}
+                      {form.skills && <p><strong className="text-emerald-200">Habilidades:</strong> {form.skills}</p>}
+                      {form.resistances && <p><strong className="text-emerald-200">Resistencias:</strong> {form.resistances}</p>}
+                      {form.vulnerabilities && <p><strong className="text-emerald-200">Vulnerabilidades:</strong> {form.vulnerabilities}</p>}
+                      {form.immunities && <p><strong className="text-emerald-200">Inmunidades:</strong> {form.immunities}</p>}
+                      {form.traits && <p className="whitespace-pre-wrap"><strong className="text-emerald-200">Rasgos:</strong> {form.traits}</p>}
+                      {form.attacks && <p className="whitespace-pre-wrap"><strong className="text-emerald-200">Acciones:</strong> {form.attacks}</p>}
+                      {form.notes && <p className="whitespace-pre-wrap"><strong className="text-emerald-200">Notas:</strong> {form.notes}</p>}
+                    </div>
+                  </details>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleForm(form)}
+                    disabled={!canTransform}
+                    className={`flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 ${
+                      isActive
+                        ? 'bg-amber-500 text-stone-950 hover:bg-amber-400'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                    }`}
+                  >
+                    {isActive ? (
+                      <><CheckCircle2 className="h-3.5 w-3.5" /> Revertir a forma normal</>
+                    ) : (
+                      <><Sparkles className="h-3.5 w-3.5" /> Transformarse (1 uso)</>
+                    )}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

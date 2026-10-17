@@ -242,6 +242,11 @@
 			"label": "Run Development Server",
 			"type": "shell",
 			"command": "npm run dev"
+		},
+		{
+			"label": "dev",
+			"type": "shell",
+			"command": "npm run dev"
 		}
 	]
 }

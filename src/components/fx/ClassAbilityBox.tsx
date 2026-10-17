@@ -9,10 +9,11 @@ interface Props {
   mod: number;
   proficientSave: boolean;
   saveBonus: number;
-  isSpellPrimary: boolean;
+  isKeyAbility: boolean;
   classId: ClassId;
   onRoll: () => void;
   onToggleSave: () => void;
+  onToggleKeyAbility: () => void;
 }
 
 export const ClassAbilityBox: React.FC<Props> = ({
@@ -22,10 +23,11 @@ export const ClassAbilityBox: React.FC<Props> = ({
   mod,
   proficientSave,
   saveBonus,
-  isSpellPrimary,
+  isKeyAbility,
   classId,
   onRoll,
   onToggleSave,
+  onToggleKeyAbility,
 }) => {
   const formatMod = (m: number) => (m >= 0 ? `+${m}` : `${m}`);
 
@@ -235,8 +237,7 @@ export const ClassAbilityBox: React.FC<Props> = ({
     >
       {renderOrnamentation()}
 
-      {/* Primary Key Spellcaster Tag */}
-      {isSpellPrimary && (
+      {isKeyAbility && (
         <span className="absolute -top-3 rounded-full bg-amber-400 text-stone-950 font-black px-2.5 py-0.5 text-[9px] uppercase tracking-wider shadow-lg z-10 border border-amber-300">
           CLAVE
         </span>
@@ -273,6 +274,19 @@ export const ClassAbilityBox: React.FC<Props> = ({
       <div className="mt-2 text-xs font-mono font-medium opacity-90 z-10">
         PUNTUACIÓN <strong className="font-bold text-sm ml-0.5">{score}</strong>
       </div>
+
+      <button
+        onClick={onToggleKeyAbility}
+        className={`mt-2 w-full rounded-lg border px-2 py-1 text-[9px] font-bold tracking-wide transition cursor-pointer z-10 ${
+          isKeyAbility
+            ? 'border-amber-400/80 bg-amber-400/20 text-amber-200'
+            : 'border-white/10 bg-black/20 text-white/55 hover:text-amber-200 hover:border-amber-400/40'
+        }`}
+        aria-pressed={isKeyAbility}
+        title={isKeyAbility ? 'Quitar marca de característica clave' : 'Marcar como característica clave'}
+      >
+        {isKeyAbility ? 'CARACTERÍSTICA CLAVE' : 'MARCAR COMO CLAVE'}
+      </button>
 
       {/* Saving Throw Toggle Button */}
       <button

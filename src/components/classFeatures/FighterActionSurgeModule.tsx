@@ -5,30 +5,71 @@ import { CharacterSheet } from '../../types/character';
 interface Props {
   character: CharacterSheet;
   onUpdate: (updated: CharacterSheet) => void;
-  onRollHeal?: (formula: string) => void;
+  onRollDiceFormula?: (formula: string, onResult: (result: number) => void) => void;
 }
 
-export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate, onRollHeal }) => {
+export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate, onRollDiceFormula }) => {
   const fighterData = character.classResources.fighter || {
-    secondWindUsed: false,
+    secondWindUsesCurrent: 0,
+    secondWindUsesMax: 0,
     actionSurgeUsed: false,
   };
 
+  const calcSecondWindMax = (level: number) => (level >= 10 ? 4 : level >= 4 ? 3 : 2);
+
   const useSecondWind = () => {
-    if (fighterData.secondWindUsed) return;
+    // DEBUG: verificar decremento de cargas
+    console.log('[SecondWind] BEFORE', {
+      secondWindUsesCurrent: fighterData.secondWindUsesCurrent,
+      secondWindUsesMax: fighterData.secondWindUsesMax,
+    });
+    const nextUsesCurrent = Math.max(0, (fighterData.secondWindUsesCurrent ?? 0) - 1);
+    console.log('[SecondWind] nextUsesCurrent', nextUsesCurrent);
+    // eslint-disable-next-line no-console
+    console.log('[SecondWind] SAVING fighter', {
+      prev: fighterData.secondWindUsesCurrent,
+      next: nextUsesCurrent,
+    });
+    if ((fighterData.secondWindUsesCurrent ?? 0) <= 0) return;
+
+    // Descontamos UNA carga inmediatamente (D&D 2024: se consume una vez usado).
+    // Nota: el heal llega async (modal). Guardamos también el decremento dentro del callback
+    // para evitar que un state stale lo vuelva a dejar en el valor anterior.
     onUpdate({
       ...character,
       classResources: {
         ...character.classResources,
         fighter: {
           ...fighterData,
-          secondWindUsed: true,
+          secondWindUsesCurrent: nextUsesCurrent,
         },
       },
     });
-    if (onRollHeal) {
-      onRollHeal(`1d10 + ${character.level}`);
-    }
+
+    // D&D 2024: regain hit points = 1d10 + fighter level.
+    // DiceTrayModal ya calculará el finalResult y lo entregará por callback.
+    onRollDiceFormula?.(`1d10 + ${character.level}`, (finalResult) => {
+      // IMPORTANTE: usar el valor actual del recurso. Si usamos el `character` del closure,
+      // podemos re-escribir fighter.secondWindUsesCurrent/Max con un valor viejo.
+      onUpdate({
+        ...character,
+        classResources: {
+          ...character.classResources,
+          fighter: {
+            ...(character.classResources.fighter ?? {
+              secondWindUsesCurrent: 0,
+              secondWindUsesMax: 0,
+              actionSurgeUsed: false,
+            }),
+            secondWindUsesCurrent: nextUsesCurrent,
+          },
+        },
+        hitPoints: {
+          ...character.hitPoints,
+          current: Math.min(character.hitPoints.max, character.hitPoints.current + finalResult),
+        },
+      });
+    });
   };
 
   const useActionSurge = () => {
@@ -46,12 +87,21 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
   };
 
   const restoreMartialEmblems = () => {
+    const fighter = character.classResources.fighter ?? {
+      secondWindUsesCurrent: 0,
+      secondWindUsesMax: 0,
+      actionSurgeUsed: false,
+    };
+    const secondWindMax = calcSecondWindMax(character.level);
+
     onUpdate({
       ...character,
       classResources: {
         ...character.classResources,
         fighter: {
-          secondWindUsed: false,
+          ...fighter,
+          secondWindUsesMax: secondWindMax,
+          secondWindUsesCurrent: (fighter.secondWindUsesCurrent ?? 0) === 0 ? secondWindMax : Math.min(fighter.secondWindUsesCurrent ?? 0, secondWindMax),
           actionSurgeUsed: false,
         },
       },
@@ -96,18 +146,18 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
         {/* Segundo Aliento */}
         <button
           onClick={useSecondWind}
-          disabled={fighterData.secondWindUsed}
+          disabled={!(fighterData.secondWindUsesCurrent > 0)}
           className={`group relative flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all duration-300 ${
-            !fighterData.secondWindUsed
-              ? 'border-amber-500/70 bg-gradient-to-r from-[#2a1c12] via-[#3d2919] to-[#2a1c12] shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-400 hover:scale-[1.01] cursor-pointer'
-              : 'border-zinc-800 bg-zinc-900/60 opacity-40 cursor-not-allowed filter grayscale'
+            !fighterData.secondWindUsesCurrent
+              ? 'border-zinc-800 bg-zinc-900/60 opacity-40 cursor-not-allowed filter grayscale'
+              : 'border-amber-500/70 bg-gradient-to-r from-[#2a1c12] via-[#3d2919] to-[#2a1c12] shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:border-amber-400 hover:scale-[1.01] cursor-pointer'
           }`}
         >
           <div
             className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition ${
-              !fighterData.secondWindUsed
-                ? 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_#f59e0b]'
-                : 'border-zinc-700 bg-zinc-800 text-zinc-500'
+              !fighterData.secondWindUsesCurrent
+                ? 'border-zinc-700 bg-zinc-800 text-zinc-500'
+                : 'border-amber-400 bg-amber-500/30 text-amber-200 shadow-[0_0_12px_#f59e0b]'
             }`}
           >
             <Heart className="h-6 w-6" />
@@ -118,12 +168,12 @@ export const FighterActionSurgeModule: React.FC<Props> = ({ character, onUpdate,
               <span className="font-cinzel text-sm font-bold text-slate-100">Segundo Aliento</span>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  !fighterData.secondWindUsed
+                  fighterData.secondWindUsesCurrent > 0
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                     : 'bg-zinc-800 text-zinc-500'
                 }`}
               >
-                {!fighterData.secondWindUsed ? 'ENCENDIDO' : 'APAGADO'}
+                {fighterData.secondWindUsesCurrent > 0 ? 'ENCENDIDO' : 'APAGADO'}
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1">

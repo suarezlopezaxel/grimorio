@@ -92,28 +92,13 @@ export const RogueStealthModule: React.FC<Props> = ({ character, onUpdate, onTog
             </>
           ) : (
             <>
-              <EyeOff className="h-4 w-4" /> Entrar en Sigilo (Oscurecer Hoja)
+              <EyeOff className="h-4 w-4" /> Entrar en Sigilo
             </>
           )}
         </button>
       </div>
 
-      {/* Thief's Pouch (Bolsa de Ladrón) */}
-      <div className="rounded-xl border border-purple-800/30 bg-[#0d0716]/90 p-3.5 shadow-inner flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-purple-300">
-          <Package className="h-4 w-4 text-amber-400" />
-          <span className="font-semibold">Bolsa Secreta de Contrabando & Ganzúas:</span>
-        </div>
-
-        <div className="flex items-center gap-4 text-xs font-mono text-purple-200/80">
-          <span className="flex items-center gap-1">
-            <Lock className="h-3.5 w-3.5 text-zinc-400" /> Juego de Ganzúas (+6 Juego de Manos)
-          </span>
-          <span className="flex items-center gap-1">
-            <Coins className="h-3.5 w-3.5 text-amber-400" /> 3 Gemas Robadas (150 po)
-          </span>
-        </div>
-      </div>
+      {/* Thief's Pouch (Bolsa de Ladrón) - Removed as requested */}
     </div>
   );
 };

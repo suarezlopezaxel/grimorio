@@ -56,10 +56,13 @@ export interface DeathSaves {
 
 export interface InventoryItem {
   id: string;
+  cardId?: string;
   name: string;
   quantity: number;
   weight: number;
   attuned: boolean;
+  requiresAttunement?: boolean;
+  equipped?: boolean;
   value: string;
   notes?: string;
 }
@@ -115,7 +118,116 @@ export interface FeatureItem {
   isHomebrew?: boolean;
 }
 
+export interface FeatAbilityIncrease {
+  ability: AbilityKey;
+  amount: number;
+  maxScore: number;
+}
+
+export interface ItemCardData {
+  kind: 'weapon' | 'armor' | 'shield' | 'gear' | 'consumable' | 'magic';
+  rarity?: string;
+  quantity: number;
+  weight: number;
+  value: string;
+  requiresAttunement: boolean;
+  attuned: boolean;
+  armorCategory?: 'light' | 'medium' | 'heavy';
+  armorClass?: number;
+  strengthRequirement?: number;
+  stealthDisadvantage?: boolean;
+  maxDexBonus?: number;
+  weaponAbility?: AbilityKey;
+  weaponProficient?: boolean;
+  weaponDamage?: string;
+  weaponDamageType?: string;
+  weaponRange?: string;
+  effects: {
+    abilityBonuses?: Partial<Record<AbilityKey, number>>;
+    armorClassBonus?: number;
+    speedBonus?: number;
+    attackBonus?: number;
+    damageBonus?: number;
+    resistances?: string[];
+  };
+}
+
 export interface GrimoireCard {
+  id: string;
+  name: string;
+  category: 'attack' | 'spell' | 'skill' | 'feat' | 'item' | 'reaction';
+  favorite?: boolean;
+
+  /**
+   * Regla extra para otorgar/restaurar usos de acción por turno.
+   * Ej: si no gastaste tu acción base, te da usos extra; si ya la gastaste, la restaura y además da extra.
+   */
+  extraTurnUses?: {
+    kind: 'action' | 'bonusAction' | 'reaction';
+    extraUses: number;
+  };
+  actionType:
+    | 'action' | 'bonus' | 'reaction' | 'movement' | 'free' | 'passive' | 'special'
+    | 'Acción' | 'Acción Adicional' | 'Reacción' | 'Movimiento' | 'Especial' | 'Pasiva';
+  description: string;
+  source: string;
+  tags: string[];
+  featCategory?: string;
+  featRuleCategory?: 'origin' | 'general' | 'fighting_style' | 'epic_boon';
+  featPrerequisite?: string;
+  featMinimumLevel?: number;
+  featRequiredClass?: ClassId;
+  featRequiredAbility?: AbilityKey;
+  featRequiredAbilityScore?: number;
+  featRepeatable?: boolean;
+  featAbilityIncreases?: FeatAbilityIncrease[];
+  featSkillProficiencies?: string[];
+  featExpertiseSkills?: string[];
+  featAdditionalBenefits?: string;
+  /** Legacy single-increase fields; retained for cards created before multi-benefit feats. */
+  featAbility?: AbilityKey;
+  featModifier?: number;
+  uses: {
+    max: number;
+    recharge: 'none' | 'short' | 'long' | 'dawn' | 'dusk' | 'turn' | 'round' | 'other';
+    current: number;
+  };
+  showIn: {
+    sheet: boolean;
+    combat: boolean;
+  };
+  // Campos específicos por categoría
+  attackType?: 'melee' | 'ranged' | 'spell';
+  baseWeapon?: string;
+  ability?: AbilityKey;
+  proficient?: boolean;
+  magicBonus?: number;
+  attackBonus?: number;
+  range?: { normal: number; long: number; };
+  damage?: { dice: string; mod: number; type: string; }[];
+  versatileDamage?: string;
+  properties?: string[];
+  ammo?: { type: string; count: number; };
+  conditionalDamage?: { text: string; dice: string; }[];
+  equipped?: boolean;
+  item?: ItemCardData;
+  level?: number;
+  school?: string;
+  castingTime?: string;
+  area?: { shape: 'none' | 'sphere' | 'cone' | 'line' | 'cube' | 'cylinder'; size: number; };
+  components?: { V: boolean; S: boolean; M: boolean; materialText: string; materialCost: number; consumed: boolean; };
+  duration?: string;
+  concentration?: boolean;
+  ritual?: boolean;
+  resolution?: 'attack' | 'save' | 'none';
+  save?: { ability: AbilityKey; onSuccess: 'none' | 'half' | 'other'; };
+  dcOrAttack?: number;
+  effects?: { dice: string; type: 'damage' | 'healing'; }[];
+  higherLevels?: { level: number; dice: string; }[];
+  cantripScaling?: { level: number; dice: string; }[];
+  classes?: AbilityKey[];
+  status?: 'known' | 'prepared' | 'always prepared';
+}
   id: string;
   title: string;
   category: 'attack' | 'spell' | 'skill' | 'item' | 'reaction' | 'standard';
@@ -153,6 +265,7 @@ export interface ActiveEffect {
 }
 
 export interface BeastForm {
+  id?: string;
   name: string;
   cr: string;
   hp: number;
@@ -160,9 +273,18 @@ export interface BeastForm {
   speed: string;
   attacks: string;
   senses: string;
+  size?: string;
+  creatureType?: string;
+  skills?: string;
+  resistances?: string;
+  vulnerabilities?: string;
+  immunities?: string;
+  traits?: string;
+  notes?: string;
 }
 
 export interface CharacterSheet {
+  spells: SpellItem[];
   id: string;
   name: string;
   epithet: string;
@@ -191,6 +313,7 @@ export interface CharacterSheet {
 
   // Abilities
   abilities: Record<AbilityKey, AbilityScore>;
+  keyAbility?: AbilityKey | null;
   skills: SkillEntry[];
 
   // Conditions & Defenses
@@ -225,12 +348,13 @@ export interface CharacterSheet {
       inspirationCurrent: number;
       inspirationMax: number;
       die: string;
-      instrument: 'laud' | 'flauta' | 'tambor' | 'violin';
+      instrument?: 'laud' | 'flauta' | 'tambor' | 'violin';
     };
     druid?: {
       wildShapeCurrent: number;
       wildShapeMax: number;
       activeForm: BeastForm | null;
+      forms?: BeastForm[];
     };
     barbarian?: {
       rageCurrent: number;
@@ -243,7 +367,8 @@ export interface CharacterSheet {
       domain: 'vida' | 'luz' | 'tempestad' | 'guerra' | 'engano' | 'conocimiento';
     };
     fighter?: {
-      secondWindUsed: boolean;
+      secondWindUsesCurrent: number;
+      secondWindUsesMax: number;
       actionSurgeUsed: boolean;
     };
     monk?: {

@@ -99,7 +99,7 @@ export const CLASS_THEMES: Record<ClassId, ClassThemeDefinition> = {
     specialMechanics: {
       name: 'Forma Salvaje & Brotes Florales',
       componentType: 'wild_shape_botanical_buds',
-      description: 'Selector de bestias en rodajas de tronco de árbol y espacios de conjuro que florecen y se marchitan.',
+      description: 'Selector de bestias en rodajas de tronco de árbol y espacios de hechizo que florecen y se marchitan.',
     },
   },
 
@@ -405,7 +405,7 @@ export const CLASS_THEMES: Record<ClassId, ClassThemeDefinition> = {
     specialMechanics: {
       name: 'Grimorio del Patrón & Espacios de Pacto',
       componentType: 'patron_pact_tome',
-      description: 'Espacios de conjuro recargables en descanso corto e invocaciones místicas.',
+      description: 'Espacios de hechizo recargables en descanso corto e invocaciones místicas.',
     },
   },
 
@@ -437,7 +437,7 @@ export const CLASS_THEMES: Record<ClassId, ClassThemeDefinition> = {
       glowColor: '#6366f1',
     },
     specialMechanics: {
-      name: 'Libro de Conjuros Interactivo & Recuperación',
+      name: 'Libro de Hechizos Interactivo & Recuperación',
       componentType: 'interactive_spellbook_pages',
       description: 'Páginas que se pasan con fórmulas arcanas y rituales registrados.',
     },

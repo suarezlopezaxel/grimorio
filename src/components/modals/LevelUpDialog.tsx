@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, ArrowUpCircle, Heart, Zap } from 'lucide-react';
 import { CharacterSheet, AbilityKey } from '../../types/character';
+import { getDieSize } from '../../lib/hitDice';
 
 interface Props {
   isOpen: boolean;
@@ -13,7 +14,7 @@ export const LevelUpDialog: React.FC<Props> = ({ isOpen, onClose, character, onC
   if (!isOpen) return null;
 
   const nextLevel = character.level + 1;
-  const dieSize = parseInt(character.hitDice.die.replace(/\D/g, '')) || 8;
+  const dieSize = getDieSize(character.hitDice.die);
   const conMod = Math.floor((character.abilities.CON.score - 10) / 2);
   const averageHp = Math.max(1, Math.floor(dieSize / 2) + 1 + conMod);
 
@@ -51,7 +52,7 @@ export const LevelUpDialog: React.FC<Props> = ({ isOpen, onClose, character, onC
 
         <div className="space-y-4">
           <p className="text-xs text-zinc-300">
-            Tu poder heroico se expande. Ganas un nuevo dado de golpe ({character.hitDice.die.split('d')[1] || 'd8'}), aumento de puntos de golpe y espacios de conjuro ampliados.
+            Tu poder heroico se expande. Ganas un nuevo dado de golpe ({character.hitDice.die.split('d')[1] || 'd8'}), aumento de puntos de golpe y espacios de hechizo ampliados.
           </p>
 
           {/* HP Selection */}

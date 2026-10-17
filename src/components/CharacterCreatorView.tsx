@@ -250,7 +250,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
       duration: 'Instantáneo',
       attackOrDc: 'CD 15 DES',
       damageOrHeal: newSpellDamage,
-      description: 'Conjuro añadido durante la creación del personaje.',
+      description: 'Hechizo añadido durante la creación del personaje.',
       ...(newSpellUpcast.trim() ? { upcast: { dicePerLevel: newSpellUpcast.trim() } } : {}),
     };
     setSpells((previous) => [...previous, spell]);
@@ -1057,19 +1057,19 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
 
               <div className="bg-[#0f0d16] p-3 rounded-lg border border-white/5">
                 <span className="text-xs font-runic text-gray-300 font-bold uppercase block mb-2">
-                  Conjuros
+                  Hechizos
                 </span>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   <input
                     value={newSpellName}
                     onChange={(event) => setNewSpellName(event.target.value)}
-                    placeholder="Nombre del conjuro"
+                    placeholder="Nombre del hechizo"
                     className="col-span-2 rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white sm:col-span-2"
                   />
                   <select
                     value={newSpellLevel}
                     onChange={(event) => setNewSpellLevel(Number(event.target.value))}
-                    aria-label="Nivel de conjuro"
+                    aria-label="Nivel de hechizo"
                     className="rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white"
                   >
                     {Array.from({ length: maxSpellLevel + 1 }, (_, spellLevel) => (
@@ -1080,7 +1080,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                     value={newSpellDamage}
                     onChange={(event) => setNewSpellDamage(event.target.value)}
                     placeholder="Daño / efecto"
-                    aria-label="Daño o efecto de conjuro"
+                    aria-label="Daño o efecto de hechizo"
                     className="rounded border border-white/10 bg-transparent px-2 py-1.5 text-xs text-white"
                   />
                   <input
@@ -1097,7 +1097,7 @@ export const CharacterCreatorView: React.FC<CharacterCreatorViewProps> = ({
                   onClick={handleAddSpell}
                   className="mt-2 rounded bg-[var(--theme-secondary-container,#571bc1)] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
                 >
-                  Añadir conjuro
+                  Añadir hechizo
                 </button>
                 {invalidCreatorUpcast && <p role="alert" className="mt-1 text-[10px] text-red-300">Usa solo dados positivos, por ejemplo 1d6.</p>}
                 <div className="mt-2 flex flex-wrap gap-1.5">

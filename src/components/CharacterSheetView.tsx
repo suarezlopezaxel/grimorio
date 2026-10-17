@@ -119,8 +119,8 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
   const [showAddFeat, setShowAddFeat] = useState(false);
   const [newFeat, setNewFeat] = useState<Partial<FeatDefinition>>({
     name: 'Maestría Arcana Ancestral',
-    prerequisite: 'Capacidad de lanzar conjuros de nivel 2+',
-    description: 'Puedes sumar tu bonificador de competencia al daño de un conjuro una vez por turno.',
+    prerequisite: 'Capacidad de lanzar hechizos de nivel 2+',
+    description: 'Puedes sumar tu bonificador de competencia al daño de un hechizo una vez por turno.',
     abilityBonuses: { INT: 2 },
   });
   const [editingFeatId, setEditingFeatId] = useState<string | null>(null);
@@ -1280,17 +1280,17 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
               </span>
             </div>
             <div className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between">
-              <span className="text-xs text-gray-300 font-medium">CD Salv. Conjuro</span>
+              <span className="text-xs text-gray-300 font-medium">CD Salv. Hechizo</span>
               <span className="font-mono text-base font-bold text-[var(--theme-secondary,#d0bcff)]">
                 {character.spellSaveDc}
               </span>
             </div>
             <div className="themed-panel p-3 rounded-lg border border-white/5 flex items-center justify-between">
-              <span className="text-xs text-gray-300 font-medium">Ataque de Conjuro</span>
+              <span className="text-xs text-gray-300 font-medium">Ataque de Hechizo</span>
               <button
-                onClick={() => onRollDice('Ataque de Conjuro', getSpellAttackModifier(character), 'Bono de ataque mágico', 20, 1, 'normal', undefined, false, 'attack')}
+                onClick={() => onRollDice('Ataque de Hechizo', getSpellAttackModifier(character), 'Bono de ataque mágico', 20, 1, 'normal', undefined, false, 'attack')}
                 className="font-mono text-base font-bold text-[var(--theme-primary,#fbbf24)] hover:brightness-125"
-                title="Tirar ataque de conjuro"
+                title="Tirar ataque de hechizo"
               >
                 {getSpellAttackModifier(character) >= 0 ? `+${getSpellAttackModifier(character)}` : getSpellAttackModifier(character)}
               </button>
@@ -1757,9 +1757,9 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           )}
         </div>
 
-        {/* Columna Derecha: Ranuras de Conjuro y Ataques de Armas */}
+        {/* Columna Derecha: Ranuras de Hechizo y Ataques de Armas */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* Ranuras de Conjuro Interactivas */}
+          {/* Ranuras de Hechizo Interactivas */}
           <div className="themed-panel p-5 rounded-xl border border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -1767,7 +1767,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                   auto_awesome
                 </span>
                 <h3 className="font-garamond text-lg text-white font-bold">
-                  Espacios de Conjuro
+                  Espacios de Hechizo
                 </h3>
               </div>
               <span className="text-xs text-gray-400">
@@ -2203,7 +2203,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 type="text"
                 value={newSpell.name || ''}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Nombre del Conjuro..."
+                placeholder="Nombre del Hechizo..."
                 className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
               <input
@@ -2212,7 +2212,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 max="9"
                 value={newSpell.level ?? 1}
                 onChange={(e) => setNewSpell((prev) => ({ ...prev, level: parseInt(e.target.value, 10) || 0 }))}
-                placeholder="Nivel de conjuro..."
+                placeholder="Nivel de hechizo..."
                 className="text-xs text-white px-2 py-1 rounded border border-white/10 bg-transparent"
               />
               <input
@@ -2300,7 +2300,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                 }}
                 className="px-3 py-1 bg-[var(--theme-secondary,#d0bcff)] text-black font-bold text-xs rounded"
               >
-                {editingSpellId ? 'Guardar cambios' : 'Guardar Conjuro'}
+                {editingSpellId ? 'Guardar cambios' : 'Guardar Hechizo'}
               </button>
               <button
                 onClick={() => { setShowAddSpell(false); setEditingSpellId(null); }}
@@ -2395,14 +2395,14 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-runic text-xs text-[var(--theme-secondary,#d0bcff)] uppercase font-bold">
-                Conjuros & Magias Conocidas
+                Hechizos & Magias Conocidas
               </h4>
               <div className="flex items-center gap-2">
                 <select
                   value={spellFilter}
                   onChange={(event) => setSpellFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}
                   className="bg-[#211e28] text-[10px] text-gray-300 rounded border border-white/10 px-1.5 py-1"
-                  aria-label="Filtrar conjuros por nivel"
+                  aria-label="Filtrar hechizos por nivel"
                 >
                   <option value="all">Todos</option>
                   {Array.from({ length: 10 }, (_, level) => <option key={level} value={level}>{level === 0 ? 'Trucos' : `Nivel ${level}`}</option>)}
@@ -2442,7 +2442,7 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                             onUpdateCharacter((prev) => ({ ...prev, spells: (prev.spells || []).filter((item) => item.id !== spell.id) }));
                           }}
                           className="p-1 text-gray-500 hover:text-red-400"
-                          title="Eliminar conjuro"
+                          title="Eliminar hechizo"
                           aria-label={`Eliminar ${spell.name}`}
                         >
                           <span className="material-symbols-outlined text-sm">delete</span>
@@ -2450,7 +2450,11 @@ export const CharacterSheetView: React.FC<CharacterSheetViewProps> = ({
                       </div>
                     </div>
                     <p className="text-[11px] text-gray-400 mt-1">
-                      {spell.school} • {spell.range} • {spell.damageOrHeal}
+                      {spell.school} • {typeof (spell as any).range === 'string'
+                        ? (spell as any).range
+                        : (spell as any).range?.normal != null && (spell as any).range?.long != null
+                          ? `${(spell as any).range.normal}/${(spell as any).range.long}`
+                          : ''} • {spell.damageOrHeal}
                       {spell.upcast ? ` • +${spell.upcast.dicePerLevel}/nivel de espacio` : ''}
                     </p>
                     <p className="text-xs text-gray-300 mt-1">{spell.description}</p>

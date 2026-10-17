@@ -8,21 +8,46 @@ interface Props {
 }
 
 export const WarlockPactModule: React.FC<Props> = ({ character, onUpdate }) => {
+  const currentLevel = character.level ?? 1;
+  // Warlock pact slots table: slots count and slot level per PHB
+  const getPactSlotsCount = (lvl: number) => {
+    if (lvl <= 1) return 1;
+    if (lvl <= 10) return 2;
+    if (lvl <= 16) return 3;
+    return 4;
+  };
+
+  const getPactSlotLevel = (lvl: number) => {
+    if (lvl <= 2) return 1;
+    if (lvl <= 4) return 2;
+    if (lvl <= 6) return 3;
+    if (lvl <= 8) return 4;
+    return 5;
+  };
+
+  const maxSlots = getPactSlotsCount(currentLevel);
+  const slotLevel = getPactSlotLevel(currentLevel);
+
   const warlockData = character.classResources.warlock || {
-    pactSlotsCurrent: 2,
-    pactSlotsMax: 2,
-    pactSlotLevel: 3,
+    pactSlotsCurrent: maxSlots,
+    pactSlotsMax: maxSlots,
+    pactSlotLevel: slotLevel,
     patron: 'infernal',
   };
 
+  const effectiveMax = maxSlots;
+  const effectiveCurrent = Math.min(warlockData.pactSlotsCurrent, effectiveMax);
+
   const toggleSlot = (index: number) => {
-    const nextCurrent = index < warlockData.pactSlotsCurrent ? index : index + 1;
+    const nextCurrent = index < effectiveCurrent ? index : index + 1;
     onUpdate({
       ...character,
       classResources: {
         ...character.classResources,
         warlock: {
           ...warlockData,
+          pactSlotsMax: effectiveMax,
+          pactSlotLevel: slotLevel,
           pactSlotsCurrent: nextCurrent,
         },
       },
@@ -36,7 +61,9 @@ export const WarlockPactModule: React.FC<Props> = ({ character, onUpdate }) => {
         ...character.classResources,
         warlock: {
           ...warlockData,
-          pactSlotsCurrent: warlockData.pactSlotsMax,
+          pactSlotsMax: effectiveMax,
+          pactSlotLevel: slotLevel,
+          pactSlotsCurrent: effectiveMax,
         },
       },
     });
@@ -57,14 +84,14 @@ export const WarlockPactModule: React.FC<Props> = ({ character, onUpdate }) => {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-cinzel text-base font-bold text-emerald-100 tracking-wide">
-                Magia del Pacto Profano (Nivel {warlockData.pactSlotLevel})
+                Magia del Pacto
               </h3>
               <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-500/30">
-                {warlockData.pactSlotsCurrent} / {warlockData.pactSlotsMax} Espacios
+                {effectiveCurrent} / {effectiveMax} Espacios
               </span>
             </div>
             <p className="text-xs text-emerald-200/70">
-              Patrón: <strong className="capitalize text-emerald-300">{warlockData.patron}</strong> • Se recargan totalmente con Descanso Corto
+              Se recargan totalmente con Descanso Corto
             </p>
           </div>
         </div>
@@ -82,11 +109,11 @@ export const WarlockPactModule: React.FC<Props> = ({ character, onUpdate }) => {
       <div className="my-3 rounded-xl border border-emerald-600/30 bg-[#09140e]/90 p-4 shadow-inner flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xs font-cinzel font-semibold text-emerald-300">
-            Sigilos Ocultos Activos:
+            Espacios de Pacto:
           </span>
           <div className="flex items-center gap-3">
-            {Array.from({ length: warlockData.pactSlotsMax }).map((_, i) => {
-              const isAvailable = i < warlockData.pactSlotsCurrent;
+            {Array.from({ length: effectiveMax }).map((_, i) => {
+              const isAvailable = i < effectiveCurrent;
               return (
                 <button
                   key={i}
@@ -106,7 +133,7 @@ export const WarlockPactModule: React.FC<Props> = ({ character, onUpdate }) => {
         </div>
 
         <span className="text-xs text-emerald-300/80 italic font-serif">
-          Todos los conjuros de brujo se lanzan automáticamente a su nivel máximo ({warlockData.pactSlotLevel})
+          Todos los hechizos de brujo se lanzan automáticamente a su nivel máximo ({slotLevel})
         </span>
       </div>
     </div>

@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { getDieSize } from '../../lib/hitDice';
+import { abilityForSkill } from '../../lib/skillAbilities';
+import { getArmorSpeedPenalty, getEffectiveAbilityScore as calculateEffectiveAbilityScore, getEquippedArmorClass, getEquippedItems, getItemEffectTotal, getEquippedResistances } from '../../lib/itemEffects';
+import { normalizeBardicInspiration } from '../../lib/bardicInspiration';
 import {
   Shield,
   Heart,
@@ -12,12 +16,10 @@ import {
   Trash2,
   Award,
 } from 'lucide-react';
-import {
-  CharacterSheet,
-  AbilityKey,
-  ProficiencyLevel,
-  InventoryItem,
-} from '../../types/character';
+import { InventorySection } from './InventorySection';
+import { DefensesSection } from './DefensesSection';
+import { SpellSlotsSection } from './SpellSlotsSection';
+// removed SpellEditor
 import { CLASS_THEMES } from '../../data/classThemes';
 import { ClassFeatureDispatcher } from '../classFeatures/ClassFeatureDispatcher';
 import { ClassAbilityBox } from '../fx/ClassAbilityBox';
@@ -27,11 +29,12 @@ import {
   ClassBox,
   ClassSubBox,
 } from '../fx/ClassStyledContainer';
+import { CharacterSheet, AbilityKey, ProficiencyLevel, InventoryItem } from '../../types/character';
 
 interface Props {
   character: CharacterSheet;
   onUpdate: (updated: CharacterSheet) => void;
-  onOpenDiceTray: (formula?: string) => void;
+  onOpenDiceTray: (formula?: string, callback?: (result: number) => void) => void;
   onOpenLevelUp: () => void;
   onOpenShortRest: () => void;
   onTriggerShake?: () => void;
@@ -40,6 +43,7 @@ interface Props {
   onEmitNote?: (x: number, y: number) => void;
   onToggleStealthMode?: (active: boolean) => void;
   onTriggerWildSurge?: (result: string) => void;
+  onUpdateInitiative?: (initiative: number) => void;
 }
 
 export const CharacterSheetView: React.FC<Props> = ({
@@ -54,22 +58,66 @@ export const CharacterSheetView: React.FC<Props> = ({
   onEmitNote,
   onToggleStealthMode,
   onTriggerWildSurge,
+  onUpdateInitiative,
 }) => {
-  const theme = CLASS_THEMES[character.classId] || CLASS_THEMES.mago;
+  // State
   const [selectedDamageType, setSelectedDamageType] = useState('Sin tipo');
   const [newResistance, setNewResistance] = useState('');
   const [resistanceType, setResistanceType] = useState<'Resistencia' | 'Inmunidad' | 'Vulnerabilidad'>('Resistencia');
 
+  const theme = CLASS_THEMES[character.classId] || CLASS_THEMES.mago;
+
   // Ability modifier calculator
   const getMod = (score: number) => Math.floor((score - 10) / 2);
   const formatMod = (mod: number) => (mod >= 0 ? `+${mod}` : `${mod}`);
+  const d20Formula = (modifier: number) =>
+    `1d20 ${modifier >= 0 ? '+' : '-'} ${Math.abs(modifier)}`;
+  const featCards = character.cards.filter((card) => card.category === 'feat' || card.category === 'skill');
+  const getEffectiveAbilityScore = (ability: AbilityKey) =>
+    calculateEffectiveAbilityScore(character.cards, ability, character.abilities[ability].score);
+  const getEffectiveAbilityMod = (ability: AbilityKey) =>
+    getMod(getEffectiveAbilityScore(ability));
+  const initiativeBonus = character.initiativeBonus
+    + getEffectiveAbilityMod('DES')
+    - getMod(character.abilities.DES.score);
+  const spellcastingModDelta = getEffectiveAbilityMod(character.spellcastingAbility)
+    - getMod(character.abilities[character.spellcastingAbility].score);
+  const spellSaveDC = character.spellSaveDC + spellcastingModDelta;
+  const spellAttackBonus = character.spellAttackBonus + spellcastingModDelta;
+  const effectiveMaxHitPoints = Math.max(
+    1,
+    character.hitPoints.max
+      + (getEffectiveAbilityMod('CON') - getMod(character.abilities.CON.score)) * character.level,
+  );
+  const effectiveCarryingCapacity = getEffectiveAbilityScore('FUE') * 15;
+  const effectiveArmorClass = getEquippedArmorClass(
+    character.cards,
+    character.armorClass,
+    getEffectiveAbilityMod('DES'),
+  );
+  const effectiveSpeed = Math.max(0, character.speed
+    + getItemEffectTotal(character.cards, 'speedBonus')
+    - getArmorSpeedPenalty(character.cards, getEffectiveAbilityScore('FUE')));
+  const equippedItemResistances = getEquippedResistances(character.cards);
+  const equippedArmorNames = getEquippedItems(character.cards)
+    .filter((card) => card.item?.kind === 'armor' || card.item?.kind === 'shield')
+    .map((card) => card.name);
+
+  const getEffectiveSkillLevel = (skillName: string, proficiency: ProficiencyLevel): ProficiencyLevel => {
+    const featGrantsExpertise = skillName && featCards.some((feat) => feat.featExpertiseSkills?.includes(skillName));
+    const featGrantsProficiency = skillName && featCards.some((feat) => feat.featSkillProficiencies?.includes(skillName));
+    if (proficiency === 'expertise' || featGrantsExpertise) return 'expertise';
+    if (proficiency === 'proficient' || featGrantsProficiency) return 'proficient';
+    return proficiency;
+  };
 
   // Skill bonus calculator
-  const getSkillBonus = (ability: AbilityKey, prof: ProficiencyLevel) => {
-    const mod = getMod(character.abilities[ability].score);
-    if (prof === 'expertise') return mod + character.proficiencyBonus * 2;
-    if (prof === 'proficient') return mod + character.proficiencyBonus;
-    if (prof === 'half') return mod + Math.floor(character.proficiencyBonus / 2);
+  const getSkillBonus = (skillName: string, ability: AbilityKey, proficiency: ProficiencyLevel) => {
+    const mod = getEffectiveAbilityMod(ability);
+    const effectiveLevel = getEffectiveSkillLevel(skillName, proficiency);
+    if (effectiveLevel === 'expertise') return mod + character.proficiencyBonus * 2;
+    if (effectiveLevel === 'proficient') return mod + character.proficiencyBonus;
+    if (effectiveLevel === 'half') return mod + Math.floor(character.proficiencyBonus / 2);
     return mod;
   };
 
@@ -102,7 +150,7 @@ export const CharacterSheetView: React.FC<Props> = ({
   const adjustHP = (delta: number) => {
     const next = Math.max(
       0,
-      Math.min(character.hitPoints.max, character.hitPoints.current + delta),
+      Math.min(effectiveMaxHitPoints, character.hitPoints.current + delta),
     );
     onUpdate({
       ...character,
@@ -111,15 +159,56 @@ export const CharacterSheetView: React.FC<Props> = ({
   };
 
   const handleLongRest = () => {
+    const druidMaxUses =
+      character.level >= 17 ? 4 : character.level >= 6 ? 3 : 2;
+    const bardResources = character.classResources.bard;
+    const normalizedBardResources = normalizeBardicInspiration(
+      bardResources,
+      character.level,
+      getEffectiveAbilityScore('CAR'),
+    );
     onUpdate({
       ...character,
       hitPoints: {
         ...character.hitPoints,
-        current: character.hitPoints.max,
+        current: effectiveMaxHitPoints,
         temp: 0,
       },
       hitDice: { ...character.hitDice, current: character.hitDice.max },
       spellSlots: character.spellSlots.map((s) => ({ ...s, used: 0 })),
+      cards: character.cards.map((card) => (
+        card.uses?.recharge === 'short'
+        || card.uses?.recharge === 'long'
+        || card.uses?.recharge === 'dawn'
+        || card.uses?.recharge === 'dusk'
+          ? { ...card, uses: { ...card.uses, current: card.uses.max } }
+          : card
+      )),
+      classResources: {
+        ...character.classResources,
+        ...(character.classId === 'druida'
+          ? {
+              druid: {
+                ...(character.classResources.druid ?? {
+                  wildShapeCurrent: druidMaxUses,
+                  wildShapeMax: druidMaxUses,
+                  activeForm: null,
+                  forms: [],
+                }),
+                wildShapeMax: druidMaxUses,
+                wildShapeCurrent: druidMaxUses,
+              },
+            }
+          : {}),
+        ...(character.classId === 'bardo'
+          ? {
+              bard: {
+                ...normalizedBardResources,
+                inspirationCurrent: normalizedBardResources.inspirationMax,
+              },
+            }
+          : {}),
+      },
       deathSaves: { successes: 0, failures: 0 },
     });
   };
@@ -141,10 +230,52 @@ export const CharacterSheetView: React.FC<Props> = ({
   };
 
   const removeItem = (id: string) => {
+    const inventoryItem = character.inventory.find((item) => item.id === id);
+    if (inventoryItem?.cardId) {
+      onUpdate({
+        ...character,
+        cards: character.cards.filter((card) => card.id !== inventoryItem.cardId),
+      });
+      return;
+    }
     onUpdate({
       ...character,
       inventory: character.inventory.filter((i) => i.id !== id),
     });
+  };
+
+  const updateItem = (id: string, updates: Partial<InventoryItem>) => {
+    const inventoryItem = character.inventory.find((item) => item.id === id);
+    if (inventoryItem?.cardId) {
+      onUpdate({
+        ...character,
+        cards: character.cards.map((card) => {
+          if (card.id !== inventoryItem.cardId || !card.item) return card;
+          const itemUpdates: Partial<NonNullable<typeof card.item>> = {};
+          if (updates.quantity != null) itemUpdates.quantity = Math.max(0, updates.quantity);
+          if (updates.weight != null) itemUpdates.weight = Math.max(0, updates.weight);
+          if (updates.value != null) itemUpdates.value = updates.value;
+          if (updates.attuned != null) itemUpdates.attuned = updates.attuned;
+          if (updates.requiresAttunement != null) {
+            itemUpdates.requiresAttunement = updates.requiresAttunement;
+            if (!updates.requiresAttunement) itemUpdates.attuned = false;
+          }
+          if (updates.equipped != null) return { ...card, equipped: updates.equipped, item: { ...card.item, ...itemUpdates } };
+          return { ...card, name: updates.name ?? card.name, title: updates.name ?? card.title, item: { ...card.item, ...itemUpdates } };
+        }),
+      });
+      return;
+    }
+    onUpdate({
+      ...character,
+      inventory: character.inventory.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+    });
+  };
+
+  const removeDefense = (type: 'resistances' | 'immunities' | 'vulnerabilities', index: number) => {
+    const def = { ...character.defenses };
+    def[type] = def[type].filter((_, i) => i !== index);
+    onUpdate({ ...character, defenses: def });
   };
 
   // Add defense
@@ -162,18 +293,32 @@ export const CharacterSheetView: React.FC<Props> = ({
     setNewResistance('');
   };
 
-  // Toggle Spell Slot (equivalente a CW for MCU 11.1)
   const toggleSpellSlot = (tierIndex: number, slotIndex: number) => {
-    onUpdateCharacter((prev) => {
-      const newSlots = [...prev.spellSlots];
-      const target = { ...newSlots[tierIndex] };
-      if (slotIndex < target.current) {
-        target.current = Math.max(0, target.current - 1);
-      } else {
-        target.current = Math.min(target.max, target.current + 1);
-      }
-      newSlots[tierIndex] = target;
-      return { ...prev, spellSlots: newSlots };
+    const nextUsed = (() => {
+      const slot = character.spellSlots[tierIndex];
+      if (!slot) return 0;
+      if (slotIndex < slot.used) return Math.max(0, slot.used - 1);
+      return Math.min(slot.max, slot.used + 1);
+    })();
+
+    const updatedSlots = character.spellSlots.map((s, idx) =>
+      idx === tierIndex ? { ...s, used: nextUsed } : s
+    );
+
+    onUpdate({ ...character, spellSlots: updatedSlots });
+  };
+
+  const handleToggleDeathSave = (key: 'successes' | 'failures', index: number) => {
+    console.log(`Toggling ${key} at index ${index}`);
+    const currentVal = character.deathSaves[key];
+    const nextVal = index < currentVal ? index : index + 1;
+
+    onUpdate({
+      ...character,
+      deathSaves: {
+        ...character.deathSaves,
+        [key]: nextVal,
+      },
     });
   };
 
@@ -284,11 +429,86 @@ export const CharacterSheetView: React.FC<Props> = ({
         onEmitRipple={onEmitRipple}
         onEmitNote={onEmitNote}
         onToggleStealthMode={onToggleStealthMode}
-        onRollDiceFormula={(formula) => onOpenDiceTray(formula)}
+        onRollDiceFormula={(formula, cb) => onOpenDiceTray(formula, cb)}
         onTriggerWildSurge={onTriggerWildSurge}
       />
 
-      {/* 3. Condiciones Activas & Defensas */}
+      <ClassWidget classId={character.classId} className="p-4 md:p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-cinzel text-base font-bold">
+          <Award className="h-4 w-4 text-amber-400" />
+          Dotes & Rasgos
+        </h3>
+        {featCards.length === 0 ? (
+          <ClassSubBox classId={character.classId} className="p-3 text-xs italic opacity-75">
+            Aún no hay dotes o rasgos registrados.
+          </ClassSubBox>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+            {featCards.map((feat) => (
+              <ClassSubBox key={feat.id} classId={character.classId} className="p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="font-cinzel text-sm font-bold">{feat.name}</h4>
+                  <span className="text-[10px] opacity-75">{feat.actionType}</span>
+                </div>
+                <p className="mt-1 text-[10px] opacity-75">
+                  {{
+                    origin: 'Origen',
+                    general: 'General',
+                    fighting_style: 'Estilo de combate',
+                    epic_boon: 'Don épico',
+                  }[feat.featRuleCategory || 'origin']}
+                  {feat.featCategory ? ` · ${feat.featCategory}` : ''}
+                </p>
+                {feat.featPrerequisite && (
+                  <p className="mt-1 text-[10px] opacity-75">Requisito: {feat.featPrerequisite}</p>
+                )}
+                {(feat.featMinimumLevel ?? 1) > 1 && (
+                  <p className="mt-1 text-[10px] opacity-75">Nivel mínimo: {feat.featMinimumLevel}</p>
+                )}
+                {feat.featRequiredClass && (
+                  <p className="mt-1 text-[10px] opacity-75">Clase requerida: {feat.featRequiredClass}</p>
+                )}
+                {feat.featRequiredAbility && (
+                  <p className="mt-1 text-[10px] opacity-75">
+                    Requiere {feat.featRequiredAbility} {feat.featRequiredAbilityScore ?? 13}+
+                  </p>
+                )}
+                {(feat.featAbilityIncreases || (feat.featAbility ? [{
+                  ability: feat.featAbility,
+                  amount: feat.featModifier ?? 0,
+                  maxScore: feat.featRuleCategory === 'epic_boon' ? 30 : 20,
+                }] : [])).map((increase, index) => (
+                  <p key={index} className="mt-1 font-mono text-xs text-emerald-300">
+                    {increase.ability} {increase.amount > 0 ? '+' : ''}{increase.amount} (máx. {increase.maxScore})
+                  </p>
+                ))}
+                {feat.featAdditionalBenefits && (
+                  <p className="mt-2 whitespace-pre-wrap text-xs">{feat.featAdditionalBenefits}</p>
+                )}
+                {feat.featSkillProficiencies && feat.featSkillProficiencies.length > 0 && (
+                  <p className="mt-2 text-[10px] opacity-75">
+                    Competencias: {feat.featSkillProficiencies.join(', ')}
+                  </p>
+                )}
+                {feat.featExpertiseSkills && feat.featExpertiseSkills.length > 0 && (
+                  <p className="mt-1 text-[10px] opacity-75">
+                    Pericia: {feat.featExpertiseSkills.join(', ')}
+                  </p>
+                )}
+                <p className="mt-2 whitespace-pre-wrap text-xs">{feat.description}</p>
+                {(feat.uses?.max ?? 0) > 0 && (
+                  <p className="mt-2 text-[10px] font-mono opacity-75">
+                    Usos: {feat.uses?.current ?? feat.uses?.max}/{feat.uses?.max}
+                    {feat.uses?.recharge ? ` · Recupera: ${feat.uses.recharge}` : ''}
+                  </p>
+                )}
+              </ClassSubBox>
+            ))}
+          </div>
+        )}
+      </ClassWidget>
+
+      {/* Death Saves removidos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Condiciones */}
         <ClassWidget classId={character.classId} className="p-4 md:p-5">
@@ -312,132 +532,37 @@ export const CharacterSheetView: React.FC<Props> = ({
 
           <ClassSubBox classId={character.classId} className="p-3 text-xs italic">
             {character.activeConditions.length === 0
-              ? 'Sin condiciones activas. Velocidad efectiva: ' + character.speed + ' ft'
+              ? 'Sin condiciones activas. Velocidad efectiva: ' + effectiveSpeed + ' ft'
               : character.activeConditions.join(', ')}
           </ClassSubBox>
         </ClassWidget>
 
         {/* Resistencias / Inmunidades */}
-        <ClassWidget classId={character.classId} className="p-4 md:p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-cinzel text-xs font-bold">
-              Resistencias, Vulnerabilidades e Inmunidades:
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 mb-2">
-            <select
-              value={resistanceType}
-              onChange={(e) => setResistanceType(e.target.value as any)}
-              className="rounded border border-white/10 bg-black/40 px-2 py-1 text-xs"
-            >
-              <option value="Resistencia">Resistencia</option>
-              <option value="Inmunidad">Inmunidad</option>
-              <option value="Vulnerabilidad">Vulnerabilidad</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Tipo de daño..."
-              value={newResistance}
-              onChange={(e) => setNewResistance(e.target.value)}
-              className="flex-1 rounded border border-white/10 bg-black/40 px-2.5 py-1 text-xs"
-            />
-            <button
-              onClick={addDefense}
-              className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-3 py-1 text-xs font-semibold cursor-pointer"
-            >
-              Añadir
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            {character.defenses.resistances.map((r, i) => (
-              <ClassSubBox key={i} classId={character.classId} className="px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1">
-                <span>🛡️</span>
-                <span>{r}</span>
-              </ClassSubBox>
-            ))}
-            {character.defenses.immunities.map((im, i) => (
-              <ClassSubBox key={i} classId={character.classId} className="px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1">
-                <span>✨</span>
-                <span>{im}</span>
-              </ClassSubBox>
-            ))}
-          </div>
-        </ClassWidget>
+        <DefensesSection
+          character={{
+            ...character,
+            defenses: {
+              ...character.defenses,
+              resistances: [...new Set([...character.defenses.resistances, ...equippedItemResistances])],
+            },
+          }}
+          newResistance={newResistance}
+          setNewResistance={setNewResistance}
+          resistanceType={resistanceType}
+          setResistanceType={setResistanceType}
+          addDefense={addDefense}
+          removeDefense={removeDefense}
+        />
       </div>
 
       {/* 4. Inventario & Monedas */}
-      <ClassWidget classId={character.classId} className="p-4 md:p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="font-cinzel text-sm font-bold">Inventario & Bolsa de Equipo</h3>
-            <span className="text-xs opacity-75">
-              • Peso: {character.inventory.reduce((a, b) => a + b.weight * b.quantity, 0)} / {character.carryingCapacityMax} lb
-              • Sintonizados: {character.inventory.filter((i) => i.attuned).length}/3
-            </span>
-          </div>
-          <button
-            onClick={addItem}
-            className="flex items-center gap-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/15 px-3 py-1 text-xs font-semibold transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Añadir Objeto</span>
-          </button>
-        </div>
-
-        {/* Currency row */}
-        <div className="grid grid-cols-5 gap-2 mb-3 text-center text-xs">
-          <ClassSubBox classId={character.classId} className="p-1.5">
-            <span className="text-[10px] opacity-75 block font-mono">CP</span>
-            <span className="font-bold text-amber-500 font-mono text-sm">{character.currency.cp}</span>
-          </ClassSubBox>
-          <ClassSubBox classId={character.classId} className="p-1.5">
-            <span className="text-[10px] opacity-75 block font-mono">SP</span>
-            <span className="font-bold text-slate-200 font-mono text-sm">{character.currency.sp}</span>
-          </ClassSubBox>
-          <ClassSubBox classId={character.classId} className="p-1.5">
-            <span className="text-[10px] opacity-75 block font-mono">EP</span>
-            <span className="font-bold text-cyan-300 font-mono text-sm">{character.currency.ep}</span>
-          </ClassSubBox>
-          <ClassSubBox classId={character.classId} className="p-1.5">
-            <span className="text-[10px] opacity-75 block font-mono">GP</span>
-            <span className="font-bold text-amber-400 font-mono text-sm">{character.currency.gp}</span>
-          </ClassSubBox>
-          <ClassSubBox classId={character.classId} className="p-1.5">
-            <span className="text-[10px] opacity-75 block font-mono">PP</span>
-            <span className="font-bold text-indigo-300 font-mono text-sm">{character.currency.pp}</span>
-          </ClassSubBox>
-        </div>
-
-        {/* Items List */}
-        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-          {character.inventory.map((item) => (
-            <ClassSubBox
-              key={item.id}
-              classId={character.classId}
-              className="flex items-center justify-between text-xs py-2 px-3"
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold">{item.name}</span>
-                <span className="opacity-70 font-mono">x{item.quantity}</span>
-                <span className="opacity-70 font-mono">{item.weight} lb</span>
-                {item.attuned && (
-                  <span className="text-[10px] text-purple-300 bg-purple-950/80 px-1.5 py-0.5 rounded border border-purple-500/40">
-                    Sintonizado
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => removeItem(item.id)}
-                className="opacity-60 hover:opacity-100 hover:text-rose-400 p-1 cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </ClassSubBox>
-          ))}
-        </div>
-      </ClassWidget>
+      <InventorySection
+        character={{ ...character, carryingCapacityMax: effectiveCarryingCapacity }}
+        onUpdate={onUpdate}
+        addItem={addItem}
+        removeItem={removeItem}
+        updateItem={updateItem}
+      />
 
       {/* 5. Características & Modificadores: Visceral Class-Themed Ability Boxes! */}
       <ClassWidget classId={character.classId} className="p-4 md:p-5">
@@ -454,8 +579,9 @@ export const CharacterSheetView: React.FC<Props> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {(['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR'] as AbilityKey[]).map((key) => {
             const ab = character.abilities[key];
-            const mod = getMod(ab.score);
-            const isSpellPrimary = character.spellcastingAbility === key;
+            const score = getEffectiveAbilityScore(key);
+            const mod = getEffectiveAbilityMod(key);
+            const isKeyAbility = character.keyAbility === key;
             const saveBonus = ab.proficientSave ? mod + character.proficiencyBonus : mod;
 
             return (
@@ -463,21 +589,25 @@ export const CharacterSheetView: React.FC<Props> = ({
                 key={key}
                 abilityKey={key}
                 label={ab.label}
-                score={ab.score}
+                score={score}
                 mod={mod}
                 proficientSave={ab.proficientSave}
                 saveBonus={saveBonus}
-                isSpellPrimary={isSpellPrimary}
+                isKeyAbility={isKeyAbility}
                 classId={character.classId}
-                onRoll={() => onOpenDiceTray(`1d20 + ${mod}`)}
+                onRoll={() => onOpenDiceTray(d20Formula(mod))}
                 onToggleSave={() => toggleSaveProficiency(key)}
+                onToggleKeyAbility={() => onUpdate({
+                  ...character,
+                  keyAbility: isKeyAbility ? null : key,
+                })}
               />
             );
           })}
         </div>
       </ClassWidget>
 
-      {/* 6. Combat Stats Row: CA, Iniciativa, Velocidad, Competencia, Pasiva, CD Conjuro */}
+      {/* 6. Combat Stats Row: CA, Iniciativa, Velocidad, Competencia, Pasiva, CD Hechizo */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Armadura (CA) */}
         <ClassBox classId={character.classId} withCorners className="text-center p-3">
@@ -485,8 +615,8 @@ export const CharacterSheetView: React.FC<Props> = ({
             <Shield className="h-4 w-4 text-emerald-400" />
             <span className="font-cinzel text-[11px]">ARMADURA (CA)</span>
           </div>
-          <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">{character.armorClass}</div>
-          <div className="text-[10px] opacity-75 truncate">{character.armorTypeDescription}</div>
+          <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">{effectiveArmorClass}</div>
+          <div className="text-[10px] opacity-75 truncate">{equippedArmorNames.length ? equippedArmorNames.join(', ') : character.armorTypeDescription}</div>
         </ClassBox>
 
         {/* Iniciativa */}
@@ -497,15 +627,22 @@ export const CharacterSheetView: React.FC<Props> = ({
           className="text-center p-3 cursor-pointer"
         >
           <div
-            onClick={() => onOpenDiceTray(`1d20 + ${character.initiativeBonus}`)}
-            className="w-full h-full"
+            onClick={() => {
+              const roll = Math.floor(Math.random() * 20) + 1;
+              const total = roll + initiativeBonus;
+              onUpdateInitiative?.(total);
+              onOpenDiceTray(d20Formula(initiativeBonus), (result) => {
+                onUpdateInitiative?.(result);
+              });
+            }}
+            className="w-full h-full cursor-pointer"
           >
             <div className="flex items-center justify-center gap-1.5 text-xs font-bold opacity-75 mb-1">
               <Zap className="h-4 w-4 text-purple-400" />
               <span className="font-cinzel text-[11px]">INICIATIVA</span>
             </div>
             <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">
-              {formatMod(character.initiativeBonus)}
+              {formatMod(initiativeBonus)}
             </div>
             <div className="text-[10px] opacity-75">Mod. Destreza</div>
           </div>
@@ -514,7 +651,7 @@ export const CharacterSheetView: React.FC<Props> = ({
         {/* Velocidad */}
         <ClassBox classId={character.classId} withCorners className="text-center p-3">
           <div className="text-xs font-bold opacity-75 mb-1 font-cinzel text-[11px]">VELOCIDAD</div>
-          <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">{character.speed}</div>
+          <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">{effectiveSpeed}</div>
           <div className="text-[10px] opacity-75">{Math.floor(character.speed / 5)} casillas</div>
         </ClassBox>
 
@@ -527,16 +664,16 @@ export const CharacterSheetView: React.FC<Props> = ({
           <div className="text-[10px] opacity-75">Escala con nivel</div>
         </ClassBox>
 
-        {/* CD Salv. Conjuro */}
+        {/* CD Salv. Hechizo */}
         <ClassBox classId={character.classId} withCorners className="text-center p-3">
-          <div className="text-xs font-bold opacity-75 mb-1 font-cinzel text-[11px]">CD SALV. CONJURO</div>
+          <div className="text-xs font-bold opacity-75 mb-1 font-cinzel text-[11px]">CD SALV. HECHIZO</div>
           <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">
-            {character.spellSaveDC}
+            {spellSaveDC}
           </div>
           <div className="text-[10px] opacity-75">8 + Bono + Mod</div>
         </ClassBox>
 
-        {/* Ataque de Conjuro */}
+        {/* Ataque de Hechizo */}
         <ClassBox
           classId={character.classId}
           withCorners
@@ -544,12 +681,12 @@ export const CharacterSheetView: React.FC<Props> = ({
           className="text-center p-3 cursor-pointer"
         >
           <div
-            onClick={() => onOpenDiceTray(`1d20 + ${character.spellAttackBonus}`)}
+            onClick={() => onOpenDiceTray(d20Formula(spellAttackBonus))}
             className="w-full h-full"
           >
-            <div className="text-xs font-bold opacity-75 mb-1 font-cinzel text-[11px]">ATAQUE CONJURO</div>
+            <div className="text-xs font-bold opacity-75 mb-1 font-cinzel text-[11px]">ATAQUE HECHIZO</div>
             <div className="font-cinzel text-3xl font-extrabold my-1 drop-shadow">
-              +{character.spellAttackBonus}
+              {formatMod(spellAttackBonus)}
             </div>
             <div className="text-[10px] opacity-75">Bono + Mod</div>
           </div>
@@ -620,7 +757,7 @@ export const CharacterSheetView: React.FC<Props> = ({
             <span className="font-cinzel text-4xl font-extrabold drop-shadow">
               {character.hitPoints.current}
             </span>
-            <span className="opacity-70 font-cinzel text-xl">/ {character.hitPoints.max} PG</span>
+            <span className="opacity-70 font-cinzel text-xl">/ {effectiveMaxHitPoints} PG</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -642,7 +779,7 @@ export const CharacterSheetView: React.FC<Props> = ({
             <div className="border-l border-white/15 pl-4 text-center">
               <span className="text-[10px] font-mono opacity-75 block">DADOS GOLPE</span>
               <span className="font-bold text-amber-400 text-xs font-mono">
-                {character.hitDice.current}d{character.hitDice.die.replace(/\D/g, '')}
+                {character.hitDice.current}d{getDieSize(character.hitDice.die)}
               </span>
             </div>
           </div>
@@ -653,7 +790,7 @@ export const CharacterSheetView: React.FC<Props> = ({
           <div
             className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
             style={{
-              width: `${Math.min(100, Math.max(0, (character.hitPoints.current / character.hitPoints.max) * 100))}%`,
+              width: `${Math.min(100, Math.max(0, (character.hitPoints.current / effectiveMaxHitPoints) * 100))}%`,
             }}
           />
         </div>
@@ -709,7 +846,9 @@ export const CharacterSheetView: React.FC<Props> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {character.skills.map((skill) => {
-            const bonus = getSkillBonus(skill.ability, skill.level);
+            const skillAbility = abilityForSkill(skill.name, skill.ability);
+            const bonus = getSkillBonus(skill.name, skillAbility, skill.level);
+            const effectiveLevel = getEffectiveSkillLevel(skill.name, skill.level);
             return (
               <ClassSubBox
                 key={skill.name}
@@ -720,24 +859,24 @@ export const CharacterSheetView: React.FC<Props> = ({
                   <button
                     onClick={() => cycleSkillProficiency(skill.name)}
                     className={`h-4 w-4 rounded-full border flex items-center justify-center transition cursor-pointer ${
-                      skill.level === 'expertise'
+                      effectiveLevel === 'expertise'
                         ? 'border-purple-300 bg-purple-500 shadow-[0_0_8px_#a855f7]'
-                        : skill.level === 'proficient'
+                        : effectiveLevel === 'proficient'
                         ? 'border-emerald-300 bg-emerald-500 shadow-[0_0_8px_#10b981]'
-                        : skill.level === 'half'
+                        : effectiveLevel === 'half'
                         ? 'border-amber-300 bg-amber-500/60'
                         : 'border-white/20 bg-black/40'
                     }`}
-                    title={`Estado: ${skill.level}`}
+                    title={`Estado: ${effectiveLevel}${effectiveLevel !== skill.level ? ' (otorgado por dote)' : ''}`}
                   />
                   <div>
                     <span className="text-xs font-semibold">{skill.name}</span>
-                    <span className="text-[10px] opacity-70 ml-1.5 font-mono">({skill.ability})</span>
+                    <span className="text-[10px] opacity-70 ml-1.5 font-mono">({skillAbility})</span>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => onOpenDiceTray(`1d20 + ${bonus}`)}
+                  onClick={() => onOpenDiceTray(d20Formula(bonus))}
                   className="font-mono font-bold text-xs hover:underline px-2 py-0.5 rounded hover:bg-black/30 cursor-pointer"
                 >
                   {formatMod(bonus)}
@@ -748,57 +887,15 @@ export const CharacterSheetView: React.FC<Props> = ({
         </div>
       </ClassWidget>
 
-      {/* 9. Espacios de Conjuro & Armas y Ataques */}
+      {/* 9. Espacios de Hechizo & Armas y Ataques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Espacios de Conjuro */}
-        <ClassWidget classId={character.classId} className="p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-cinzel text-sm font-bold flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              <span>Espacios de Conjuro</span>
-            </h3>
-            <span className="text-xs opacity-75">
-              {character.knownSpells.filter((s) => s.prepared).length} Preparados
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {character.spellSlots.map((slot) => {
-              if (slot.max === 0) return null;
-              return (
-                <ClassSubBox
-                  key={slot.level}
-                  classId={character.classId}
-                  className="flex items-center justify-between p-2.5"
-                >
-                  <span className="text-xs font-semibold font-cinzel">
-                    NIVEL {slot.level} ({slot.max - slot.used} / {slot.max})
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    {Array.from({ length: slot.max }).map((_, i) => {
-                      const isAvailable = i >= slot.used;
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => toggleSpellSlot(slot.level, i)}
-                          className={`h-4 w-4 rounded-full border transition cursor-pointer ${
-                            isAvailable
-                              ? 'border-indigo-300 bg-indigo-500 shadow-[0_0_8px_#6366f1]'
-                              : 'border-white/20 bg-black/50'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-                </ClassSubBox>
-              );
-            })}
-          </div>
-        </ClassWidget>
+        {/* Espacios de Hechizo */}
+        {character.classId !== 'brujo' && (
+          <SpellSlotsSection character={character} onUpdate={onUpdate} />
+        )}
 
         {/* Armas & Ataques */}
-        <ClassWidget classId={character.classId} className="p-4 md:p-5">
+        <ClassWidget classId={character.classId} className={`p-4 md:p-5 ${character.classId === 'brujo' ? 'lg:col-span-2' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-cinzel text-sm font-bold flex items-center gap-2">
               <span>⚔️</span>
@@ -807,36 +904,88 @@ export const CharacterSheetView: React.FC<Props> = ({
           </div>
 
           <div className="space-y-2.5">
-            {character.weapons.map((wep) => (
-              <ClassSubBox
-                key={wep.id}
-                classId={character.classId}
-                className="flex items-center justify-between p-3"
-              >
-                <div>
-                  <div className="font-cinzel text-xs font-bold">{wep.name}</div>
-                  <div className="text-[10px] opacity-75">
-                    {wep.range} • {wep.properties}
+            {character.weapons.map((wep) => {
+              const attackCard = character.cards.find((card) => card.id === wep.id && card.category === 'attack');
+              const ability = attackCard?.ability ?? 'FUE';
+              const isSpellAttack = attackCard?.attackType === 'spell';
+              const attackBonus = getEffectiveAbilityMod(ability)
+                + (attackCard?.proficient ? character.proficiencyBonus : 0)
+                + (attackCard?.magicBonus ?? 0)
+                + (attackCard?.attackBonus ?? wep.attackBonus)
+                + (isSpellAttack ? 0 : getItemEffectTotal(character.cards, 'attackBonus'));
+              const damageFormula = attackCard?.damage?.length
+                ? attackCard.damage.map((damage) => {
+                    const bonus = damage.mod
+                      + (isSpellAttack ? 0 : getEffectiveAbilityMod(ability))
+                      + (isSpellAttack ? 0 : getItemEffectTotal(character.cards, 'damageBonus'));
+                    return `${damage.dice} ${bonus < 0 ? '-' : '+'} ${Math.abs(bonus)}`;
+                  }).join(' + ')
+                : wep.damage;
+              return (
+                <ClassSubBox
+                  key={wep.id}
+                  classId={character.classId}
+                  className="flex items-center justify-between p-3"
+                >
+                  <div>
+                    <div className="font-cinzel text-xs font-bold">{wep.name}</div>
+                    <div className="text-[10px] opacity-75">
+                      {typeof (wep as any).range === 'string'
+                        ? (wep as any).range
+                        : (wep as any).range?.normal != null && (wep as any).range?.long != null
+                          ? `${(wep as any).range.normal}/${(wep as any).range.long}`
+                          : ''} • {wep.properties}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onOpenDiceTray(`1d20 + ${wep.attackBonus}`)}
-                    className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold transition cursor-pointer"
-                  >
-                    +{wep.attackBonus} Atk
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onOpenDiceTray(`1d20 ${attackBonus < 0 ? '-' : '+'} ${Math.abs(attackBonus)}`)}
+                      className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold transition cursor-pointer"
+                    >
+                      {formatMod(attackBonus)} Atq.
+                    </button>
 
-                  <button
-                    onClick={() => onOpenDiceTray(wep.damage)}
-                    className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold transition cursor-pointer"
-                  >
-                    Daño: {wep.damage}
-                  </button>
-                </div>
-              </ClassSubBox>
-            ))}
+                    <button
+                      onClick={() => onOpenDiceTray(damageFormula)}
+                      className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold transition cursor-pointer"
+                    >
+                      Daño: {damageFormula}
+                    </button>
+                  </div>
+                </ClassSubBox>
+              );
+            })}
+            {character.cards.filter((card) => card.category === 'item' && card.equipped && card.item?.kind === 'weapon').map((card) => {
+              const weapon = card.item!;
+              const abilityModifier = getEffectiveAbilityMod(weapon.weaponAbility ?? 'FUE');
+              const attackBonus = abilityModifier
+                + (weapon.weaponProficient ? character.proficiencyBonus : 0)
+                + getItemEffectTotal(character.cards, 'attackBonus');
+              const damageModifier = abilityModifier + getItemEffectTotal(character.cards, 'damageBonus');
+              return (
+                <ClassSubBox key={card.id} classId={character.classId} className="flex items-center justify-between p-3">
+                  <div>
+                    <div className="font-cinzel text-xs font-bold">{card.name}</div>
+                    <div className="text-[10px] opacity-75">
+                      {weapon.weaponRange || 'Alcance no especificado'}
+                      {weapon.weaponDamage ? ` • ${weapon.weaponDamage} ${weapon.weaponDamageType || ''}` : ''}
+                      {card.properties?.length ? ` • ${card.properties.join(', ')}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onOpenDiceTray(`1d20 ${attackBonus < 0 ? '-' : '+'} ${Math.abs(attackBonus)}`)} className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold cursor-pointer">
+                      {formatMod(attackBonus)} Atq.
+                    </button>
+                    {weapon.weaponDamage && (
+                      <button onClick={() => onOpenDiceTray(`${weapon.weaponDamage} ${damageModifier < 0 ? '-' : '+'} ${Math.abs(damageModifier)}`)} className="rounded bg-black/40 hover:bg-black/60 border border-white/15 px-2.5 py-1 text-xs font-bold cursor-pointer">
+                        Daño
+                      </button>
+                    )}
+                  </div>
+                </ClassSubBox>
+              );
+            })}
           </div>
         </ClassWidget>
       </div>

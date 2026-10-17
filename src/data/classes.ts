@@ -43,18 +43,18 @@ export const CLASS_PROGRESSION: Partial<Record<ClassKey, ClassProgression>> = {
       name: 'Recuperación Arcana',
       usesMax: 1,
       recharge: 'Descanso Largo',
-      description: 'Una vez por día, recupera espacios de conjuro durante un descanso corto.',
+      description: 'Una vez por día, recupera espacios de hechizo durante un descanso corto.',
       minLevel: 1,
     }],
     startingTraits: [
       {
-        name: 'Lanzamiento de Conjuros',
-        description: 'Puedes lanzar conjuros de mago usando Inteligencia como característica de lanzamiento.',
+        name: 'Lanzamiento de Hechizos',
+        description: 'Puedes lanzar hechizos de mago usando Inteligencia como característica de lanzamiento.',
         minLevel: 1,
       },
       {
         name: 'Recuperación Arcana',
-        description: 'Una vez al día, al terminar un descanso corto, recuperas espacios de conjuro de nivel 5 o inferior.',
+        description: 'Una vez al día, al terminar un descanso corto, recuperas espacios de hechizo de nivel 5 o inferior.',
         minLevel: 1,
       },
     ],

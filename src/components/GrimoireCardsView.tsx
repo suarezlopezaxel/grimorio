@@ -11,6 +11,7 @@ interface GrimoireCardsViewProps {
   onUseCard: (cardId: string) => boolean;
   onUndoCardUse: (cardId: string) => void;
   onRollDice: (label: string, modifier: number, subtext?: string, sides?: number, count?: number) => void;
+  onUpdate: (updated: CharacterSheet) => void;
 }
 
 export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
@@ -21,6 +22,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
   onUseCard,
   onUndoCardUse,
   onRollDice,
+  onUpdate,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CardCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,14 +46,25 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
   const [newRecharge, setNewRecharge] = useState('Descanso Largo');
   const [newRollAbility, setNewRollAbility] = useState<AbilityCode | ''>('');
   const [newRollProficient, setNewRollProficient] = useState(false);
+  const [newExtraKind, setNewExtraKind] = useState<'action' | 'bonusAction' | 'reaction'>('action');
+  const [newExtraUses, setNewExtraUses] = useState<number>(0);
 
   // Filtered cards
   const filteredCards = cards.filter((c) => {
     const matchesCat = selectedCategory === 'all' || c.category === selectedCategory;
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return matchesCat;
+
+    const title = (c.title ?? '').toLowerCase();
+    const description = (c.description ?? '').toLowerCase();
+    const typeBadge = (c.typeBadge ?? '').toLowerCase();
+
     const matchesSearch =
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.typeBadge.toLowerCase().includes(searchQuery.toLowerCase());
+      title.includes(q) ||
+      description.includes(q) ||
+      typeBadge.includes(q);
+
     return matchesCat && matchesSearch;
   });
 
@@ -70,12 +83,13 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
       reach: newReach,
       hitBonusOrDc: newBonus,
       targetOrArea: existingCard?.targetOrArea ?? '1 Criatura / Área',
-      primaryDamageOrEffect: newDamage,
+      primaryDamageOrEffect: newDamage.replace(/^\s*(Efecto\s*\/\s*daño|Efecto\s*\/\s*Daño|Efecto\s*\/\s*D[aA]ño|Efecto\s*\/\s*daño)\s*:\s*/i, ''),
       description: newDesc || 'Efecto personalizado creado por el escriba.',
       imageUrl: existingCard?.imageUrl ?? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
       damageFormula: newDamageFormula || undefined,
       rollAbility: newRollAbility || undefined,
       rollProficient: newRollProficient,
+      extraTurnUses: newExtraUses > 0 ? { kind: newExtraKind, extraUses: newExtraUses } : undefined,
       resourceDesc: newResourceDesc || undefined,
       resourceMax: newResourceMax > 0 ? newResourceMax : undefined,
       resourceUsed: existingCard?.resourceUsed ?? 0,
@@ -94,7 +108,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
   const categories: { id: CardCategory | 'all'; label: string; icon: string }[] = [
     { id: 'all', label: 'Todas', icon: 'auto_stories' },
     { id: 'attack', label: 'Ataques', icon: 'swords' },
-    { id: 'spell', label: 'Conjuros', icon: 'auto_awesome' },
+    { id: 'spell', label: 'Hechizos', icon: 'auto_awesome' },
     { id: 'skill', label: 'Habilidades', icon: 'psychology' },
     { id: 'item', label: 'Objetos', icon: 'inventory_2' },
     { id: 'reaction', label: 'Reacciones', icon: 'shield_with_heart' },
@@ -113,7 +127,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
             <span>Grimorio de Tarjetas Tácticas</span>
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Acciones, conjuros y dotes de combate ordenadas para consulta y despliegue rápido
+            Acciones, hechizos y dotes de combate ordenadas para consulta y despliegue rápido
           </p>
         </div>
 
@@ -135,6 +149,8 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
             setNewRecharge('Descanso Largo');
             setNewRollAbility('');
             setNewRollProficient(false);
+            setNewExtraKind('action');
+            setNewExtraUses(0);
             setIsHomebrewModalOpen(true);
           }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary-container)] font-bold text-xs hover:brightness-110 shadow-md transition-all self-start md:self-auto cursor-pointer active:scale-95"
@@ -304,7 +320,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                 <div className="grid grid-cols-3 gap-1.5 text-center bg-[var(--theme-surface-low)] p-2 rounded-lg border border-[var(--theme-surface-high)]">
                   <div className="flex flex-col">
                     <span className="text-[9px] font-runic text-gray-500 uppercase">Alcance</span>
-                    <span className="text-xs text-gray-200 font-bold truncate">{card.reach}</span>
+                    <span className="text-xs text-gray-200 font-bold truncate">{((card as any).reach ?? (card as any).range ?? '').toString()}</span>
                   </div>
                   <div className="flex flex-col border-x border-white/5">
                     <span className="text-[9px] font-runic text-gray-500 uppercase">Tirada / CD</span>
@@ -322,7 +338,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
 
                 {/* Primary Damage / Effect Banner */}
                 <div className="flex items-center justify-between bg-[var(--theme-surface)] px-3 py-2 rounded-lg border border-[var(--theme-surface-high)]">
-                  <span className="text-xs text-gray-400">Efecto / Daño:</span>
+                  <span className="text-xs text-gray-400">Daño:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-garamond text-base font-bold text-white">
                       {card.primaryDamageOrEffect}
@@ -401,7 +417,12 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                       setNewActionType(card.actionType);
                       setNewReach(card.reach);
                       setNewBonus(card.hitBonusOrDc);
-                      setNewDamage(card.primaryDamageOrEffect);
+                      setNewDamage(
+                        (card.primaryDamageOrEffect ?? '').replace(
+                          /^\s*(Efecto\s*\/\s*daño|Efecto\s*\/\s*Daño|Efecto\s*\/\s*D[aA]ño|Efecto\s*\/\s*daño)\s*:\s*/i,
+                          ''
+                        )
+                      );
                       setNewDesc(card.description);
                       setNewDamageFormula(card.damageFormula ?? '');
                       setNewResourceMax(card.resourceMax ?? 0);
@@ -410,6 +431,8 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                       setNewRecharge(card.recharge ?? 'Descanso Largo');
                       setNewRollAbility(card.rollAbility ?? '');
                       setNewRollProficient(!!card.rollProficient);
+                      setNewExtraKind(card.extraTurnUses?.kind ?? 'action');
+                      setNewExtraUses(card.extraTurnUses?.extraUses ?? 0);
                       setIsHomebrewModalOpen(true);
                     }}
                     className="flex items-center gap-1 p-1 text-xs text-gray-400 hover:text-white"
@@ -424,10 +447,57 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                       if (!onUseCard(card.id)) return;
                       const roll = getTacticalCardDamageRoll(card, character);
                       if (!roll) return;
+
+                      // Para hechizos: preguntar nivel de espacio (solo disponibles)
+                      if (card.category === 'spell') {
+                        const slots = character.spellSlots ?? [];
+
+                        // En este proyecto SpellSlotTier usa { tier, max, current }
+                        // Disponibles: current < max
+                        const availableTiers = slots
+                          .filter((s) => (s?.current ?? 0) < (s?.max ?? 0))
+                          .map((s) => s.tier)
+                          .filter((t) => typeof t === 'number' && !Number.isNaN(t));
+
+                        const defaultTier = typeof (card as any).level === 'number' ? (card as any).level : 1;
+                        const suggestedTier = availableTiers.includes(defaultTier)
+                          ? defaultTier
+                          : (availableTiers[0] ?? defaultTier);
+
+                        const tierRaw = window.prompt(
+                          `Nivel de espacio para lanzar (disponibles: ${availableTiers.join(', ') || 'ninguno'}):`,
+                          String(suggestedTier)
+                        );
+
+                        const chosenTier = tierRaw ? Number(tierRaw) : suggestedTier;
+                        if (!(typeof chosenTier === 'number' && !Number.isNaN(chosenTier) && availableTiers.includes(chosenTier))) {
+                          return; // no se puede lanzar en ese nivel
+                        }
+
+                        // Descontar 1 espacio del slot elegido (sin tocar tracker de combate)
+                        const slotIdx = (slots ?? []).findIndex((s) => s.tier === chosenTier);
+                        if (slotIdx >= 0) {
+                          const updatedSpellSlots = [...slots];
+                          const slot = updatedSpellSlots[slotIdx];
+
+                          if ((slot.current ?? 0) < (slot.max ?? 0)) {
+                            updatedSpellSlots[slotIdx] = {
+                              ...slot,
+                              current: Math.max(0, (slot.current ?? 0) - 1),
+                            };
+
+                            onUpdate({
+                              ...character,
+                              spellSlots: updatedSpellSlots,
+                            });
+                          }
+                        }
+                      }
+
                       onRollDice(
                         `Daño: ${card.title}`,
                         roll.modifier,
-                        `Efecto: ${card.primaryDamageOrEffect}`,
+                        undefined,
                         roll.sides,
                         roll.count
                       );
@@ -468,7 +538,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
             <form onSubmit={handleCreateHomebrew} className="space-y-3">
               <div>
                 <label className="block text-xs font-runic text-gray-400 uppercase mb-1">
-                  Título de la Acción o Conjuro
+                  Título de la Acción o Hechizo
                 </label>
                 <input
                   type="text"
@@ -491,7 +561,7 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                     className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-3 py-2 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
                   >
                     <option value="attack">Ataque</option>
-                    <option value="spell">Conjuro</option>
+                    <option value="spell">Hechizo</option>
                     <option value="skill">Habilidad</option>
                     <option value="item">Objeto</option>
                     <option value="reaction">Reacción</option>
@@ -644,15 +714,37 @@ export const GrimoireCardsView: React.FC<GrimoireCardsViewProps> = ({
                   </select>
                 </div>
               )}
-              <label className="flex items-center gap-2 text-xs text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={newConsumesResource}
-                  onChange={(event) => setNewConsumesResource(event.target.checked)}
-                  className="accent-[var(--theme-primary)]"
-                />
-                Consumir un uso al usar
-              </label>
+              {/* Acciones extra de turno */}
+              <div className="pt-2 border-t border-white/10 space-y-2">
+                <label className="block text-xs font-runic text-amber-300 uppercase">
+                  ⚡ Otorgar / Restaurar Acción Extra por Turno (Opcional)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-05">Tipo de recurso</label>
+                    <select
+                      value={newExtraKind}
+                      onChange={(e) => setNewExtraKind(e.target.value as 'action' | 'bonusAction' | 'reaction')}
+                      className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-2 py-1.5 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
+                    >
+                      <option value="action">Acción</option>
+                      <option value="bonusAction">Acción Adicional</option>
+                      <option value="reaction">Reacción</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-05">Cantidad extra</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      value={newExtraUses}
+                      onChange={(e) => setNewExtraUses(Number(e.target.value))}
+                      className="w-full bg-[var(--theme-surface-low)] text-xs text-white px-2 py-1.5 rounded-lg border border-[var(--theme-surface-high)] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-runic text-gray-400 uppercase mb-1">

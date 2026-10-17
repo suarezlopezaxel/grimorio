@@ -9,9 +9,15 @@ interface Props {
 }
 
 export const MonkKiModule: React.FC<Props> = ({ character, onUpdate, onEmitRipple }) => {
+  // Ki solo se desbloquea a partir de nivel 2.
+  // - Si está por debajo de 2: no se muestra UI y ki disponible es 0.
+  // - Si está en 2+: los puntos de ki = nivel del personaje.
+  const kiFromLevel = character.level;
+  const isKiUnlocked = character.level >= 2;
+
   const monkData = character.classResources.monk || {
-    kiCurrent: character.level,
-    kiMax: character.level,
+    kiCurrent: isKiUnlocked ? kiFromLevel : 0,
+    kiMax: isKiUnlocked ? kiFromLevel : 0,
   };
 
   const toggleKiPoint = (index: number, e: React.MouseEvent) => {
@@ -43,6 +49,9 @@ export const MonkKiModule: React.FC<Props> = ({ character, onUpdate, onEmitRippl
       },
     });
   };
+
+  // Si aún no se cumple el nivel 2, no se renderiza el frame de ki.
+  if (!isKiUnlocked) return null;
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-rose-600/40 bg-gradient-to-br from-[#1c1216]/90 via-[#100d11]/95 to-[#24141c]/90 p-5 shadow-xl backdrop-blur-md">

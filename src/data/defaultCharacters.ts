@@ -77,7 +77,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
     },
 
     inventory: [
-      { id: 'inv-1', name: 'Libro de Conjuros de Cuero Astral', quantity: 1, weight: 3, attuned: false, value: '50 po', notes: 'Grabado con runas argentas' },
+      { id: 'inv-1', name: 'Libro de Hechizos de Cuero Astral', quantity: 1, weight: 3, attuned: false, value: '50 po', notes: 'Grabado con runas argentas' },
       { id: 'inv-2', name: 'Pluma del Escriba Despierto', quantity: 1, weight: 0.5, attuned: true, value: '150 po', notes: 'Tinta infinita etérea' },
       { id: 'inv-3', name: 'Poción de Curación Mayor', quantity: 2, weight: 1, attuned: false, value: '100 po', notes: 'Cura 4d4 + 4 PG' },
       { id: 'inv-4', name: 'Foco Arcano (Orbe de Cuarzo Estelar)', quantity: 1, weight: 1, attuned: false, value: '25 po' },
@@ -196,14 +196,14 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         name: 'Pluma de Mago • Copia Instantánea',
         source: 'Mago (Escribas)',
         actionType: 'Pasiva',
-        description: 'Transcribir conjuros al libro solo toma 2 minutos por nivel en lugar de 2 horas. No requiere costo en tintas arcanas exóticas.',
+        description: 'Transcribir hechizos al libro solo toma 2 minutos por nivel en lugar de 2 horas. No requiere costo en tintas arcanas exóticas.',
       },
       {
         id: 'feat-2',
         name: 'Transmutación Elemental de Daño',
         source: 'Mago (Escribas)',
         actionType: 'Especial',
-        description: 'Al lanzar un conjuro que cause daño, puedes reemplazar temporalmente su tipo por el de otro conjuro en tu libro.',
+        description: 'Al lanzar un hechizo que cause daño, puedes reemplazar temporalmente su tipo por el de otro hechizo en tu libro.',
       },
       {
         id: 'feat-3',
@@ -213,7 +213,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         usesMax: 1,
         usesLeft: 1,
         rechargeOn: 'Descanso Largo',
-        description: 'Invocas una proyección flotante y translúcida de tu códice para percibir y lanzar conjuros desde su ubicación.',
+        description: 'Invocas una proyección flotante y translúcida de tu códice para percibir y lanzar hechizos desde su ubicación.',
       },
       {
         id: 'feat-4',
@@ -223,7 +223,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         usesMax: 3,
         usesLeft: 2,
         rechargeOn: 'Descanso Corto',
-        description: 'Altera el elemento del próximo conjuro sin gastar acción adicional suplementaria.',
+        description: 'Altera el elemento del próximo hechizo sin gastar acción adicional suplementaria.',
       },
     ],
 
@@ -254,9 +254,9 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         actionType: 'Acción Adicional',
         range: 'Uno mismo',
         attackOrDC: '+1 CD Salvación',
-        target: 'Uno mismo (1 Asalto)',
+        target: 'Uno mismo (1 Turno)',
         effectOrDamage: 'Alteración Elemental',
-        description: 'Puedes transcribir mentalmente el tipo de daño del próximo conjuro que lances. Cambia el elemento a fuego, frío, relámpago, ácido o fuerza.',
+        description: 'Puedes transcribir mentalmente el tipo de daño del próximo hechizo que lances. Cambia el elemento a fuego, frío, relámpago, ácido o fuerza.',
         usesMax: 3,
         usesLeft: 2,
         recharge: 'Descanso Corto',
@@ -295,7 +295,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         target: 'Uno mismo',
         effectOrDamage: 'Mitiga 50% (+1d6 absorción)',
         description: 'Ganas resistencia al tipo de daño elemental activador contra ese ataque y tu siguiente ataque cuerpo a cuerpo inflige +1d6 extra del mismo tipo.',
-        trigger: 'Cuando recibes daño de Fuego, Frío, Relámpago, Ácido o Trueno proveniente de un ataque o conjuro.',
+        trigger: 'Cuando recibes daño de Fuego, Frío, Relámpago, Ácido o Trueno proveniente de un ataque o hechizo.',
         usesMax: 1,
         usesLeft: 1,
       },
@@ -483,7 +483,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         name: 'Adeptos de la Luna',
         source: 'Círculo de la Luna',
         actionType: 'Acción Adicional',
-        description: 'Mientras estás en Forma Salvaje, puedes gastar un espacio de conjuro para recuperar 1d8 PG por nivel del espacio.',
+        description: 'Mientras estás en Forma Salvaje, puedes gastar un espacio de hechizo para recuperar 1d8 PG por nivel del espacio.',
       },
     ],
 
@@ -695,7 +695,7 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         name: 'Palabras Hirientes',
         source: 'Colegio de la Elocuencia',
         actionType: 'Reacción',
-        description: 'Resta un dado de inspiración de la tirada de salvación del objetivo cuando esté por resistir un conjuro.',
+        description: 'Resta un dado de inspiración de la tirada de salvación del objetivo cuando esté por resistir un hechizo.',
       },
     ],
 
@@ -704,7 +704,6 @@ export const DEFAULT_CHARACTERS: CharacterSheet[] = [
         inspirationCurrent: 4,
         inspirationMax: 4,
         die: 'd8',
-        instrument: 'laud',
       },
     },
 

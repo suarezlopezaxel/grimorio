@@ -123,19 +123,19 @@ export const DEFAULT_CHARACTER: CharacterSheet = {
       title: 'Pluma de Mago • Copia Instantánea',
       badge: 'PASIVA',
       badgeType: 'neutral',
-      description: 'Transcribir conjuros al libro solo toma 2 minutos por nivel en lugar de 2 horas. No requiere costo en tintas arcanas exóticas.'
+      description: 'Transcribir hechizos al libro solo toma 2 minutos por nivel en lugar de 2 horas. No requiere costo en tintas arcanas exóticas.'
     },
     {
       title: 'Transmutación Elemental de Daño',
       badge: 'ESPACIO REQUERIDO',
       badgeType: 'accent',
-      description: 'Al lanzar un conjuro que cause daño usando un espacio de magia, puedes reemplazar temporalmente su tipo por otro daño de un conjuro conocido del mismo nivel.'
+      description: 'Al lanzar un hechizo que cause daño usando un espacio de magia, puedes reemplazar temporalmente su tipo por otro daño de un hechizo conocido del mismo nivel.'
     },
     {
       title: 'Manifestación del Espíritu del Grimorio',
       badge: '1 ACCIÓN',
       badgeType: 'action',
-      description: 'Invocas una proyección flotante y translúcida de tu códice. Puedes percibir a través de él y lanzar conjuros desde su ubicación espacial.'
+      description: 'Invocas una proyección flotante y translúcida de tu códice. Puedes percibir a través de él y lanzar hechizos desde su ubicación espacial.'
     }
   ],
 
@@ -160,6 +160,9 @@ export const DEFAULT_COMBAT_STATE: CombatRoundState = {
   actionUsed: false,
   bonusActionUsed: false,
   reactionUsed: false,
+  actionExtraUses: 0,
+  bonusActionExtraUses: 0,
+  reactionExtraUses: 0,
 };
 
 export const DEFAULT_TACTICAL_CARDS: TacticalCard[] = [
@@ -187,12 +190,12 @@ export const DEFAULT_TACTICAL_CARDS: TacticalCard[] = [
     actionType: 'Acción Adicional',
     reach: 'Uno mismo',
     hitBonusOrDc: '+1 CD Salvación',
-    targetOrArea: 'Uno mismo (1 Asalto)',
+    targetOrArea: 'Uno mismo (1 Turno)',
     primaryDamageOrEffect: 'Alteración Elemental',
     resourceDesc: 'Usos Diarios: 3 Disponibles',
     resourceMax: 3,
     resourceUsed: 1,
-    description: 'Puedes transcribir mentalmente el tipo de daño del próximo conjuro que lances. Cambia el elemento a fuego, frío, relámpago, ácido o fuerza sin gastar componentes materiales.',
+    description: 'Puedes transcribir mentalmente el tipo de daño del próximo hechizo que lances. Cambia el elemento a fuego, frío, relámpago, ácido o fuerza sin gastar componentes materiales.',
     imageUrl: 'https://images.unsplash.com/photo-1532012164546-f432f2e3edd7?auto=format&fit=crop&w=600&q=80'
   },
   {
@@ -240,7 +243,7 @@ export const DEFAULT_TACTICAL_CARDS: TacticalCard[] = [
     targetOrArea: 'Uno mismo',
     primaryDamageOrEffect: 'Mitiga 50%',
     secondaryEffect: '+1d6 elemental al sig. golpe',
-    trigger: 'Cuando recibes daño de Fuego, Frío, Relámpago, Ácido o Trueno proveniente de un ataque o conjuro.',
+    trigger: 'Cuando recibes daño de Fuego, Frío, Relámpago, Ácido o Trueno proveniente de un ataque o hechizo.',
     resourceDesc: 'Uso por Combate: 1 Disponible',
     resourceMax: 1,
     resourceUsed: 0,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Flame, ShieldAlert, Sparkles, RotateCcw } from 'lucide-react';
+import { Flame, RotateCcw, ShieldAlert } from 'lucide-react';
 import { CharacterSheet } from '../../types/character';
+import { barbarianRageMaxForLevel, barbarianRageDamageBonusForLevel } from '../../lib/barbarianRageRules';
 
 interface Props {
   character: CharacterSheet;
@@ -10,10 +11,15 @@ interface Props {
 
 export const BarbarianRageModule: React.FC<Props> = ({ character, onUpdate, onTriggerShake }) => {
   const barbData = character.classResources.barbarian || {
-    rageCurrent: 3,
-    rageMax: 3,
+    rageCurrent: 0,
+    rageMax: 0,
     isRaging: false,
   };
+
+  const rageMaxForLevel = barbarianRageMaxForLevel(character.level);
+  const rageDamageBonus = barbarianRageDamageBonusForLevel(character.level);
+  const rageCurrent = Math.min(barbData.rageCurrent ?? 0, rageMaxForLevel);
+
 
   const [screaming, setScreaming] = useState(false);
 
@@ -51,7 +57,8 @@ export const BarbarianRageModule: React.FC<Props> = ({ character, onUpdate, onTr
         ...character.classResources,
         barbarian: {
           ...barbData,
-          rageCurrent: barbData.rageMax,
+          rageMax: rageMaxForLevel,
+          rageCurrent: rageMaxForLevel,
           isRaging: false,
         },
       },
@@ -90,7 +97,7 @@ export const BarbarianRageModule: React.FC<Props> = ({ character, onUpdate, onTr
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-cinzel text-base font-bold text-red-100 tracking-wide">
-                Furia Berserker (Camino de la Sangre)
+                Furia Berserker
               </h3>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-bold border transition ${
@@ -99,11 +106,11 @@ export const BarbarianRageModule: React.FC<Props> = ({ character, onUpdate, onTr
                     : 'border-red-800 bg-red-950/30 text-red-400'
                 }`}
               >
-                {barbData.isRaging ? '¡FURIA ACTIVA!' : `${barbData.rageCurrent} / ${barbData.rageMax} Furias`}
+                {barbData.isRaging ? '¡FURIA ACTIVA!' : `${rageCurrent} / ${rageMaxForLevel} Furias`}
               </span>
             </div>
             <p className="text-xs text-red-200/70">
-              Resistencia a Contundente, Perforante y Cortante • +2 daño cuerpo a cuerpo
+              Resistencia a Contundente, Perforante y Cortante • +${rageDamageBonus} daño cuerpo a cuerpo
             </p>
           </div>
         </div>
@@ -174,7 +181,7 @@ export const BarbarianRageModule: React.FC<Props> = ({ character, onUpdate, onTr
             }`}
           >
             <ShieldAlert className="h-5 w-5" />
-            {barbData.isRaging ? '💥 APAGAR FURIA (TRANQUILIZARSE)' : '🩸 ¡DESATAR FURIA! (TEMBLOR DE PANTALLA)'}
+            {barbData.isRaging ? '💥 APAGAR FURIA (TRANQUILIZARSE)' : '🩸 ¡DESATAR FURIA!'}
           </button>
         </div>
 

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Moon, Heart, Sparkles } from 'lucide-react';
 import { CharacterSheet } from '../../types/character';
+import { getDieSize } from '../../lib/hitDice';
+import { getEffectiveAbilityScore } from '../../lib/itemEffects';
 
 interface Props {
   isOpen: boolean;
@@ -10,12 +12,22 @@ interface Props {
 }
 
 export const ShortRestDialog: React.FC<Props> = ({ isOpen, onClose, character, onApplyHealing }) => {
-  if (!isOpen) return null;
-
-  const dieSize = parseInt(character.hitDice.die.replace(/\D/g, '')) || 8;
-  const conMod = Math.floor((character.abilities.CON.score - 10) / 2);
+  const dieSize = getDieSize(character.hitDice.die);
+  const effectiveConScore = getEffectiveAbilityScore(
+    character.cards,
+    'CON',
+    character.abilities.CON.score,
+  );
+  const conMod = Math.floor((effectiveConScore - 10) / 2);
   const [diceToSpend, setDiceToSpend] = useState<number>(1);
   const [healingRolled, setHealingRolled] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDiceToSpend(Math.min(1, character.hitDice.current));
+      setHealingRolled(null);
+    }
+  }, [isOpen, character.hitDice.current]);
 
   const rollDiceHealing = () => {
     let total = 0;
@@ -26,10 +38,15 @@ export const ShortRestDialog: React.FC<Props> = ({ isOpen, onClose, character, o
   };
 
   const confirmHealing = () => {
-    const total = healingRolled !== null ? healingRolled : diceToSpend * (Math.floor(dieSize / 2) + 1 + conMod);
+    if (diceToSpend < 0 || diceToSpend > character.hitDice.current) return;
+    const total = healingRolled !== null
+      ? healingRolled
+      : diceToSpend * Math.max(1, Math.floor(dieSize / 2) + 1 + conMod);
     onApplyHealing(total, diceToSpend);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
@@ -57,14 +74,22 @@ export const ShortRestDialog: React.FC<Props> = ({ isOpen, onClose, character, o
               <span className="text-xs text-zinc-300">¿Cuántos dados gastar?</span>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setDiceToSpend(Math.max(1, diceToSpend - 1))}
+                  disabled={diceToSpend <= 0}
+                  onClick={() => {
+                    setDiceToSpend(Math.max(0, diceToSpend - 1));
+                    setHealingRolled(null);
+                  }}
                   className="w-8 h-8 rounded border border-zinc-700 bg-zinc-800 text-sm font-bold text-white"
                 >
                   -
                 </button>
                 <span className="font-mono font-bold text-sm text-indigo-300">{diceToSpend}</span>
                 <button
-                  onClick={() => setDiceToSpend(Math.min(character.hitDice.current, diceToSpend + 1))}
+                  disabled={diceToSpend >= character.hitDice.current}
+                  onClick={() => {
+                    setDiceToSpend(Math.min(character.hitDice.current, diceToSpend + 1));
+                    setHealingRolled(null);
+                  }}
                   className="w-8 h-8 rounded border border-zinc-700 bg-zinc-800 text-sm font-bold text-white"
                 >
                   +
@@ -73,10 +98,11 @@ export const ShortRestDialog: React.FC<Props> = ({ isOpen, onClose, character, o
             </div>
 
             <button
+              disabled={diceToSpend < 1 || diceToSpend > character.hitDice.current}
               onClick={rollDiceHealing}
               className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-cinzel text-xs font-bold transition"
             >
-              🎲 Tirar {diceToSpend}d{dieSize} + {diceToSpend * conMod} (CON)
+              🎲 Tirar {diceToSpend}d{dieSize} {conMod < 0 ? '−' : '+'} {Math.abs(diceToSpend * conMod)} (CON {conMod >= 0 ? '+' : ''}{conMod} por dado)
             </button>
 
             {healingRolled !== null && (
@@ -88,6 +114,7 @@ export const ShortRestDialog: React.FC<Props> = ({ isOpen, onClose, character, o
           </div>
 
           <button
+            disabled={diceToSpend < 0 || diceToSpend > character.hitDice.current}
             onClick={confirmHealing}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 font-cinzel font-bold text-stone-950 text-xs tracking-wider uppercase shadow-lg hover:brightness-110 transition cursor-pointer"
           >

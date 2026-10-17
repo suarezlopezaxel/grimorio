@@ -8,6 +8,8 @@ interface Props {
 }
 
 export const WizardSpellbookModule: React.FC<Props> = ({ character, onUpdate }) => {
+  // El frame de Grimorio se retiró de la hoja principal. Mantengo el módulo pero lo oculto.
+  return null;
   const wizardData = character.classResources.wizard || {
     arcaneRecoveryUsed: false,
     spellbookCurrentPage: 1,
@@ -60,39 +62,17 @@ export const WizardSpellbookModule: React.FC<Props> = ({ character, onUpdate }) 
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-cinzel text-base font-bold text-indigo-100 tracking-wide">
-                Grimorio & Recuperación Arcana
+                Grimorio
               </h3>
               <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold text-indigo-200 border border-indigo-500/30">
                 Pág. {page} / {totalPages}
               </span>
             </div>
-            <p className="text-xs text-indigo-200/70">
-              Recupera hasta <strong className="text-indigo-200">{Math.ceil(character.level / 2)}</strong> niveles de espacios de conjuro en un descanso corto
-            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={useArcaneRecovery}
-            disabled={wizardData.arcaneRecoveryUsed}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-              !wizardData.arcaneRecoveryUsed
-                ? 'border border-indigo-400 bg-indigo-600/30 text-indigo-200 hover:bg-indigo-600/50 shadow-sm cursor-pointer'
-                : 'border border-zinc-800 bg-zinc-900/50 text-zinc-500 cursor-not-allowed'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>{!wizardData.arcaneRecoveryUsed ? 'Usar Recup. Arcana' : 'Usada Hoy'}</span>
-          </button>
-
-          <button
-            onClick={restoreRecovery}
-            className="flex items-center gap-1 rounded-lg border border-indigo-800/40 bg-indigo-950/40 px-2.5 py-1.5 text-xs text-indigo-300 hover:bg-indigo-900/50"
-            title="Recargar en descanso largo"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
+          {/* Recuperación Arcana movida a 'Espacios de Hechizo' */}
         </div>
       </div>
 
@@ -129,7 +109,11 @@ export const WizardSpellbookModule: React.FC<Props> = ({ character, onUpdate }) 
                 </span>
               </div>
               <div className="text-[11px] text-indigo-300/60 mb-1.5">
-                {sp.school} • {sp.castTime} • {sp.range}
+                {sp.school} • {sp.castTime} • {typeof (sp as any).range === 'string'
+                  ? (sp as any).range
+                  : (sp as any).range?.normal != null && (sp as any).range?.long != null
+                    ? `${(sp as any).range.normal}/${(sp as any).range.long}`
+                    : ''}
               </div>
               <p className="text-[11px] text-indigo-200/80 line-clamp-2">{sp.description}</p>
             </div>

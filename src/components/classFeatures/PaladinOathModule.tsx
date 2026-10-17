@@ -66,15 +66,15 @@ export const PaladinOathModule: React.FC<Props> = ({ character, onUpdate, onTrig
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-cinzel text-base font-bold text-sky-100 tracking-wide">
-                Imposición de Manos & {paladinData.oath}
+                Imposición de Manos
               </h3>
               <span className="rounded-full bg-sky-500/20 px-2.5 py-0.5 text-xs font-semibold text-sky-200 border border-sky-500/30">
                 {paladinData.layOnHandsCurrent} / {paladinData.layOnHandsMax} PG en Reserva
               </span>
             </div>
-            <p className="text-xs text-sky-200/70">
-              Aura de Protección activa • Purifica 1 enfermedad o veneno gastando 5 PG
-            </p>
+            <span className="text-xs text-sky-200/70">
+              Purifica 1 enfermedad o veneno gastando 5 PG
+            </span>
           </div>
         </div>
 

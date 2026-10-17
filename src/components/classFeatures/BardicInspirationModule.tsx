@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Music, Play, RotateCcw, Volume2, Sparkles } from 'lucide-react';
+import { Music, Volume2, Sparkles } from 'lucide-react';
 import { CharacterSheet } from '../../types/character';
+import { getEffectiveAbilityScore } from '../../lib/itemEffects';
+import { normalizeBardicInspiration } from '../../lib/bardicInspiration';
 
 interface Props {
   character: CharacterSheet;
@@ -8,23 +10,37 @@ interface Props {
   onEmitNote?: (x: number, y: number) => void;
 }
 
-const INSTRUMENTS = [
-  { id: 'laud', name: 'Laúd Élfico', icon: '🪕', description: 'Cuerdas de seda estelar con resonancia melancólica.' },
-  { id: 'flauta', name: 'Flauta de Pan', icon: '🪈', description: 'Caña tallada por ninfas de arboledas feéricas.' },
-  { id: 'tambor', name: 'Tambor de Guerra', icon: '🥁', description: 'Cuero curtido que retumba en el pecho de los aliados.' },
-  { id: 'violin', name: 'Violín Encantado', icon: '🎻', description: 'Madera de tejo con arco de crin de pegaso.' },
-] as const;
-
 export const BardicInspirationModule: React.FC<Props> = ({ character, onUpdate, onEmitNote }) => {
-  const bardData = character.classResources.bard || {
-    inspirationCurrent: 4,
-    inspirationMax: 4,
-    die: 'd8',
-    instrument: 'laud',
-  };
+  const bardData = normalizeBardicInspiration(
+    character.classResources.bard,
+    character.level,
+    getEffectiveAbilityScore(character.cards, 'CAR', character.abilities.CAR.score),
+  );
+  const instruments = character.cards.filter((card) => {
+    if (card.category !== 'item' || (card.item?.kind !== 'gear' && card.item?.kind !== 'magic')) return false;
+    const searchableText = [card.name, card.title, card.description, ...(card.tags ?? [])]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase();
+    return /instrument|la[uú]d|flauta|tambor|viol[ií]n|lira|arpa|gaita|zampoña/.test(searchableText);
+  });
 
   const [activeString, setActiveString] = useState<number | null>(null);
   const [lastSoundText, setLastSoundText] = useState<string>('♫ Acorde en Do Mayor');
+  const availableSpellSlots = character.spellSlots
+    .map((slot, index) => {
+      const slotWithTier = slot as typeof slot & { tier?: number; current?: number };
+      const level = slot.level ?? slotWithTier.tier ?? index + 1;
+      const used = slot.used ?? Math.max(0, slot.max - (slotWithTier.current ?? slot.max));
+      return { slot, index, level, used, available: Math.max(0, slot.max - used) };
+    })
+    .filter((slot) => slot.available > 0)
+    .sort((a, b) => a.level - b.level);
+  const [selectedSlotLevel, setSelectedSlotLevel] = useState<number | null>(
+    availableSpellSlots[0]?.level ?? null,
+  );
+  const selectedSlot = availableSpellSlots.find((slot) => slot.level === selectedSlotLevel)
+    ?? availableSpellSlots[0];
 
   const strumString = (index: number, e: React.MouseEvent) => {
     setActiveString(index);
@@ -55,27 +71,30 @@ export const BardicInspirationModule: React.FC<Props> = ({ character, onUpdate, 
     strumString(bardData.inspirationCurrent - 1, e);
   };
 
-  const restoreInspiration = () => {
-    onUpdate({
-      ...character,
-      classResources: {
-        ...character.classResources,
-        bard: {
-          ...bardData,
-          inspirationCurrent: bardData.inspirationMax,
-        },
-      },
-    });
-  };
+  const recoverInspirationWithSlot = () => {
+    if (
+      character.level < 5
+      || bardData.inspirationCurrent >= bardData.inspirationMax
+    ) return;
 
-  const setInstrument = (id: 'laud' | 'flauta' | 'tambor' | 'violin') => {
+    if (!selectedSlot) return;
+
     onUpdate({
       ...character,
+      spellSlots: character.spellSlots.map((slot, index) => index === selectedSlot.index
+        ? {
+            ...slot,
+            used: selectedSlot.used + 1,
+            ...( 'current' in slot && typeof slot.current === 'number'
+              ? { current: Math.max(0, slot.current - 1) }
+              : {}),
+          }
+        : slot),
       classResources: {
         ...character.classResources,
         bard: {
           ...bardData,
-          instrument: id,
+          inspirationCurrent: bardData.inspirationCurrent + 1,
         },
       },
     });
@@ -107,32 +126,61 @@ export const BardicInspirationModule: React.FC<Props> = ({ character, onUpdate, 
               </span>
             </div>
             <p className="text-xs text-amber-200/70">
-              Presiona una cuerda o gasta un dado para entonar inspiración en combate
+              Acción adicional: inspira a una criatura que pueda oírte a 60 pies o menos.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={restoreInspiration}
-          className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-900/50 hover:border-amber-400 transition"
-          title="Recuperar en descanso corto o largo"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          <span>Afinar / Recargar</span>
-        </button>
+        {character.level >= 5 && (
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Espacio de conjuro para recuperar Inspiración Bárdica"
+              value={selectedSlot?.level ?? ''}
+              onChange={(event) => setSelectedSlotLevel(Number(event.target.value))}
+              disabled={availableSpellSlots.length === 0}
+              className="rounded-lg border border-amber-500/30 bg-amber-950/60 px-2 py-1.5 text-xs text-amber-200 disabled:opacity-40"
+            >
+              {availableSpellSlots.length === 0
+                ? <option value="">Sin espacios disponibles</option>
+                : availableSpellSlots.map(({ level, available }, index) => (
+                    <option key={`${level}-${index}`} value={level}>
+                      Espacio de nivel {level} ({available} disponible{available === 1 ? '' : 's'})
+                    </option>
+                  ))}
+            </select>
+            <button
+              onClick={recoverInspirationWithSlot}
+              disabled={
+                bardData.inspirationCurrent >= bardData.inspirationMax
+                || !selectedSlot
+              }
+              className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-900/50 hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-40 transition"
+              title={
+                bardData.inspirationCurrent >= bardData.inspirationMax
+                  ? 'Ya tienes todos tus usos de Inspiración Bárdica.'
+                  : selectedSlot
+                  ? `Gasta un espacio de nivel ${selectedSlot.level} para recuperar un uso.`
+                  : 'No tienes espacios de conjuro disponibles.'
+              }
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Recuperar uso</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Playable Lute / Harp Strings */}
       <div className="my-4 rounded-xl border border-amber-500/30 bg-[#160810]/80 p-4 shadow-inner">
         <div className="flex items-center justify-between text-xs text-amber-300/80 mb-2">
           <span className="flex items-center gap-1">
-            <Volume2 className="h-3.5 w-3.5 text-amber-400" /> Cuerdas del Laúd de Bardo (Púlsalas):
+            <Volume2 className="h-3.5 w-3.5 text-amber-400" /> Acordes musicales (Púlsalos):
           </span>
           <span className="italic text-amber-400 font-mono">{lastSoundText}</span>
         </div>
 
         <div className="grid grid-cols-5 gap-2 h-20 items-stretch">
-          {[0, 1, 2, 3, 4].map((i) => {
+          {Array.from({ length: bardData.inspirationMax }, (_, i) => {
             const isAvailable = i < bardData.inspirationCurrent;
             const isStrummed = activeString === i;
             return (
@@ -158,7 +206,7 @@ export const BardicInspirationModule: React.FC<Props> = ({ character, onUpdate, 
                   }`}
                 />
                 <span className="relative z-10 text-[10px] font-mono text-amber-400/90 pt-1">
-                  Nota {['I', 'II', 'III', 'IV', 'V'][i]}
+                  Nota {['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][i] ?? i + 1}
                 </span>
                 <span className="relative z-10 text-xs pb-1 font-bold text-amber-200">
                   {isAvailable ? '♪' : '—'}
@@ -185,38 +233,37 @@ export const BardicInspirationModule: React.FC<Props> = ({ character, onUpdate, 
           <div className="flex items-center gap-1.5 text-xs text-amber-200/60 font-serif">
             <span>Rango: 60 pies</span>
             <span>•</span>
-            <span>Duración: 10 minutos</span>
+            <span>Tras fallar prueba, ataque o salvación; 1 hora para usarlo</span>
           </div>
         </div>
       </div>
 
-      {/* Musical Instrument Selector */}
       <div className="border-t border-amber-500/20 pt-3">
         <span className="text-[11px] font-medium text-amber-300/80 block mb-2 uppercase tracking-wider">
-          Instrumento Melódico Sintonizado:
+          Instrumentos en tus tarjetas de objeto:
         </span>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {INSTRUMENTS.map((inst) => {
-            const isSelected = bardData.instrument === inst.id;
-            return (
-              <button
-                key={inst.id}
-                onClick={() => setInstrument(inst.id as any)}
-                className={`flex items-center gap-2.5 rounded-lg border p-2 text-left transition ${
-                  isSelected
-                    ? 'border-amber-400 bg-amber-500/20 shadow-sm'
-                    : 'border-amber-500/20 bg-stone-950/40 hover:border-amber-500/40 hover:bg-stone-900/60'
-                }`}
+        {instruments.length === 0 ? (
+          <p className="rounded-lg border border-amber-500/20 bg-stone-950/40 p-3 text-xs text-amber-200/60">
+            Aún no hay instrumentos. Añade una tarjeta de objeto tipo Equipo y etiquétala como «instrumento».
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {instruments.map((instrument) => (
+              <div
+                key={instrument.id}
+                className="flex items-center gap-2.5 rounded-lg border border-amber-500/20 bg-stone-950/40 p-2"
               >
-                <span className="text-xl">{inst.icon}</span>
+                <Music className="h-5 w-5 shrink-0 text-amber-300" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-amber-200 truncate">{inst.name}</div>
-                  <div className="text-[10px] text-amber-200/50 truncate">{inst.description}</div>
+                  <div className="truncate text-xs font-semibold text-amber-200">{instrument.name || instrument.title}</div>
+                  <div className="truncate text-[10px] text-amber-200/50">
+                    {instrument.item?.quantity ?? 1} en el inventario
+                  </div>
                 </div>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

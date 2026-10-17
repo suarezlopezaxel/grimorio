@@ -172,7 +172,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-garamond text-lg font-bold text-white">Orden de iniciativa</h2>
-          <p className="text-[10px] text-gray-500">Asalto {encounter.round || round} · turno {encounter.combatants.length ? encounter.turnIndex + 1 : 0}/{encounter.combatants.length}</p>
+          <p className="text-[10px] text-gray-500">Turno {encounter.round || round} · posición {encounter.combatants.length ? encounter.turnIndex + 1 : 0}/{encounter.combatants.length}</p>
         </div>
         <div className="flex gap-2">
           {!hasLinkedCharacter && (

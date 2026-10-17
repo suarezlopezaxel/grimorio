@@ -22,7 +22,7 @@ interface Props {
   onEmitRipple?: (x: number, y: number) => void;
   onEmitNote?: (x: number, y: number) => void;
   onToggleStealthMode?: (active: boolean) => void;
-  onRollDiceFormula?: (formula: string) => void;
+  onRollDiceFormula?: (formula: string, onResult: (result: number) => void) => void;
   onTriggerWildSurge?: (result: string) => void;
 }
 
@@ -63,7 +63,10 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
         <FighterActionSurgeModule
           character={character}
           onUpdate={onUpdate}
-          onRollHeal={onRollDiceFormula}
+          onRollDiceFormula={(formula, onResult) => {
+            // Segundo Aliento: abrir DiceTray con la fórmula y aplicar el HP con el finalResult.
+            onRollDiceFormula?.(formula, onResult);
+          }}
         />
       );
     case 'monje':
@@ -74,7 +77,9 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
           onEmitRipple={onEmitRipple}
         />
       );
-    case 'paladin':
+    case 'paladin': {
+      const level = character.level ?? 1;
+      if (level < 3) return null;
       return (
         <PaladinOathModule
           character={character}
@@ -82,6 +87,7 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
           onTriggerAuraPulse={onTriggerAuraPulse}
         />
       );
+    }
     case 'picaro':
       return (
         <RogueStealthModule
@@ -91,8 +97,9 @@ export const ClassFeatureDispatcher: React.FC<Props> = ({
         />
       );
     case 'explorador':
-      return <RangerTrackerModule character={character} onUpdate={onUpdate} />;
+      return null;
     case 'hechicero':
+      if ((character.level ?? 1) < 2) return null;
       return (
         <SorcererMetamagicModule
           character={character}

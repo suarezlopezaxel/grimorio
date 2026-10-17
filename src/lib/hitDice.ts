@@ -22,6 +22,11 @@ export function parseHitDice(expression: string): { count: number; dieSize: HitD
   return { count, dieSize };
 }
 
+export function getDieSize(expression: string): number {
+  const match = /d(\d+)/i.exec(expression);
+  return match ? parseInt(match[1], 10) : 8;
+}
+
 export function getHitDicePool(character: CharacterSheet): HitDicePool {
   const total = Math.max(1, Math.floor(character.level));
   const existing = character.hitDicePool;

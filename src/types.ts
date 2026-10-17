@@ -91,7 +91,8 @@ export interface Skill {
 export interface SpellSlotTier {
   tier: number;
   max: number;
-  current: number;
+  used?: number;
+  current?: number;
 }
 
 export interface WeaponItem {
@@ -126,6 +127,7 @@ export interface FeatDefinition {
 }
 
 export interface SpellDefinition {
+  prepared?: boolean;
   id: string;
   name: string;
   level: number; // 0 = Truco
@@ -249,7 +251,7 @@ export interface CharacterSheet {
   weapons?: WeaponItem[];
   armors?: ArmorItem[];
   feats?: FeatDefinition[];
-  spells?: SpellDefinition[];
+  spells?: (SpellDefinition & { prepared?: boolean })[];
   inventory?: InventoryItem[];
   currency?: Currency;
   classFeatures?: ClassFeature[];
@@ -303,6 +305,10 @@ export interface TacticalCard {
   damageFormula?: string;
   rollAbility?: AbilityCode;
   rollProficient?: boolean;
+  extraTurnUses?: {
+    kind: 'action' | 'bonusAction' | 'reaction';
+    extraUses: number;
+  };
 }
 
 export interface CombatRoundState {
@@ -321,6 +327,9 @@ export interface CombatRoundState {
   actionUsed: boolean;
   bonusActionUsed: boolean;
   reactionUsed: boolean;
+  actionExtraUses?: number;
+  bonusActionExtraUses?: number;
+  reactionExtraUses?: number;
 }
 
 export interface AppSettings {
