@@ -276,11 +276,11 @@ export const DiceTrayModal: React.FC<Props> = ({ isOpen, onClose, presetFormula,
         </div>
 
         {/* Modifiers & Modes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           {/* Modifier via Character Ability Dropdown */}
           <div>
             <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-              Modificador: {modifier >= 0 ? `+${modifier}` : modifier}
+              Atributo Base:
             </label>
             <select
               value={selectedAbility}
@@ -298,7 +298,7 @@ export const DiceTrayModal: React.FC<Props> = ({ isOpen, onClose, presetFormula,
                 );
               })}
               {selectedAbility === 'custom' && (
-                <option value="custom">Fórmula / Manual ({modifier >= 0 ? `+${modifier}` : modifier})</option>
+                <option value="custom">Personalizado / Manual</option>
               )}
             </select>
           </div>
@@ -327,6 +327,79 @@ export const DiceTrayModal: React.FC<Props> = ({ isOpen, onClose, presetFormula,
                 className={`py-1 text-[11px] font-medium rounded ${rollMode === 'disadvantage' ? 'bg-rose-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
               >
                 Desv.
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Direct Modifier Adjustment (+ / -) */}
+        <div className="mb-4 rounded-xl border border-zinc-800 bg-[#141824] p-3">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-[11px] font-semibold text-emerald-400">
+              Modificador Numérico (+ / -): <span className="font-bold">{modifier >= 0 ? `+${modifier}` : modifier}</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => { setModifier(0); setSelectedAbility('none'); }}
+              className="text-[10px] text-zinc-400 hover:text-white underline"
+            >
+              Reiniciar (+0)
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={modifier}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setModifier(isNaN(val) ? 0 : val);
+                setSelectedAbility('custom');
+              }}
+              className="w-24 py-1.5 px-3 rounded-lg border border-zinc-700 bg-zinc-950 text-sm font-bold text-emerald-400 text-center focus:border-emerald-500 focus:outline-none"
+              placeholder="+0"
+            />
+            <div className="flex flex-wrap gap-1 flex-1">
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m - 5); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-rose-400 border border-zinc-700"
+              >
+                -5
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m - 1); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-rose-300 border border-zinc-700"
+              >
+                -1
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m + 1); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-emerald-300 border border-zinc-700"
+              >
+                +1
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m + 2); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-emerald-300 border border-zinc-700"
+              >
+                +2
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m + 3); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-emerald-300 border border-zinc-700"
+              >
+                +3
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModifier(m => m + 5); setSelectedAbility('custom'); }}
+                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-emerald-300 border border-zinc-700"
+              >
+                +5
               </button>
             </div>
           </div>
